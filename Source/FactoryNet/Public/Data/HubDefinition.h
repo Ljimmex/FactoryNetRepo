@@ -6,6 +6,7 @@
 #include "Engine/DataAsset.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture2D.h"
+#include "Engine/DataTable.h"
 #include "Data/TransportData.h"
 #include "HubDefinition.generated.h"
 
@@ -90,4 +91,9 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Transport")
     TArray<ETransportType> SupportedTransportTypes;
+
+    // ✅ DODANE: Wymagane technologie dla hubów
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Requirements", 
+              meta = (RowType = "UpgradeTableRow"))
+    TArray<FDataTableRowHandle> RequiredTechnologies;
 };

@@ -110,6 +110,68 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Upgrades")
     bool AreUpgradePrerequisitesMet(const FDataTableRowHandle& UpgradeReference, const TArray<FDataTableRowHandle>& CompletedUpgrades);
 
+    // === TECHNOLOGY VALIDATION FUNCTIONS ===
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Technology")
+    bool AreTechnologiesUnlocked(const TArray<FDataTableRowHandle>& RequiredTechs, 
+                                const TArray<FDataTableRowHandle>& UnlockedTechs);
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Technology")
+    TArray<FDataTableRowHandle> GetMissingTechnologies(const TArray<FDataTableRowHandle>& RequiredTechs, 
+                                                       const TArray<FDataTableRowHandle>& UnlockedTechs);
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Technology")
+    bool CanBuildFactory(UFactoryDefinition* FactoryDef, 
+                        const TArray<FDataTableRowHandle>& UnlockedTechs);
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Technology")
+    bool CanBuildDeposit(UDepositDefinition* DepositDef, 
+                        const TArray<FDataTableRowHandle>& UnlockedTechs);
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Technology")
+    bool CanBuildHub(UHubDefinition* HubDef, 
+                    const TArray<FDataTableRowHandle>& UnlockedTechs);
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Technology")
+    bool CanBuildRoad(URoadDefinition* RoadDef, 
+                     const TArray<FDataTableRowHandle>& UnlockedTechs);
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Technology")
+    bool CanUseVehicle(UVehicleDefinition* VehicleDef, 
+                      const TArray<FDataTableRowHandle>& UnlockedTechs);
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Technology")
+    bool CanBuildDemandPoint(UDemandDefinition* DemandDef, 
+                            const TArray<FDataTableRowHandle>& UnlockedTechs);
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Technology")
+    bool CanUseRecipe(const FDataTableRowHandle& RecipeRef, 
+                     const TArray<FDataTableRowHandle>& UnlockedTechs);
+
+    // === TECHNOLOGY TREE FUNCTIONS ===
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Technology")
+    TArray<FUpgradeTableRow> GetAvailableResearch(const TArray<FDataTableRowHandle>& CompletedTechs);
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Technology")
+    TArray<FUpgradeTableRow> GetTechsByPrerequisite(const FDataTableRowHandle& PrerequisiteTech);
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Technology")
+    TArray<UFactoryDefinition*> GetUnlockedFactories(const TArray<FDataTableRowHandle>& UnlockedTechs);
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Technology")
+    TArray<UDepositDefinition*> GetUnlockedDeposits(const TArray<FDataTableRowHandle>& UnlockedTechs);
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Technology")
+    TArray<UVehicleDefinition*> GetUnlockedVehicles(const TArray<FDataTableRowHandle>& UnlockedTechs);
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Technology")
+    TArray<URoadDefinition*> GetUnlockedRoads(const TArray<FDataTableRowHandle>& UnlockedTechs);
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Technology")
+    TArray<UHubDefinition*> GetUnlockedHubs(const TArray<FDataTableRowHandle>& UnlockedTechs);
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Technology")
+    TArray<UDemandDefinition*> GetUnlockedDemandPoints(const TArray<FDataTableRowHandle>& UnlockedTechs);
+
     // === DATAASSET FUNCTIONS ===
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Factory Definitions")
     UFactoryDefinition* GetFactoryDefinitionByName(const FString& FactoryName);
@@ -157,6 +219,9 @@ public:
     void PrintAllUpgradeData();
 
     UFUNCTION(BlueprintCallable, Category = "Debug")
+    void PrintTechnologyTree(const TArray<FDataTableRowHandle>& UnlockedTechs);
+
+    UFUNCTION(BlueprintCallable, Category = "Debug")
     void ValidateDataIntegrity();
 
 protected:
@@ -202,6 +267,7 @@ private:
     bool ValidateResourceReferences();
     bool ValidateProductionRecipes();
     bool ValidateUpgradeReferences();
+    bool ValidateTechnologyReferences();
     void LogDataTableStats();
     
     // Internal helper functions (nie Blueprint callable)
@@ -211,4 +277,8 @@ private:
     
     // Helper to check if DataTableRowHandle is valid
     bool IsDataTableRowHandleValid(const FDataTableRowHandle& Handle) const;
+    
+    // Technology validation helpers
+    bool AreTechnologiesUnlockedInternal(const TArray<FDataTableRowHandle>& RequiredTechs, 
+                                        const TArray<FDataTableRowHandle>& UnlockedTechs) const;
 };

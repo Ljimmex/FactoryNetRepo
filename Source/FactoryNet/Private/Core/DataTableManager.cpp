@@ -23,7 +23,7 @@ void UDataTableManager::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
     
-    UE_LOG(LogTemp, Log, TEXT("DataTableManager: Initializing with reference system..."));
+    UE_LOG(LogTemp, Log, TEXT("DataTableManager: Initializing with unified technology reference system..."));
     
     LoadAllDataTables();
 }
@@ -82,7 +82,7 @@ void UDataTableManager::LoadDataAssets()
     bDataAssetsLoaded = true;
 }
 
-// === RESOURCE FUNCTIONS ===
+// === EXISTING FUNCTIONS (from previous implementation) ===
 bool UDataTableManager::GetResourceDataByReference(const FDataTableRowHandle& ResourceReference, FResourceTableRow& OutResourceData)
 {
     FResourceTableRow* FoundRow = GetResourceDataInternal(ResourceReference);
@@ -434,6 +434,281 @@ bool UDataTableManager::AreUpgradePrerequisitesMet(const FDataTableRowHandle& Up
     return true;
 }
 
+// === NEW TECHNOLOGY VALIDATION FUNCTIONS ===
+bool UDataTableManager::AreTechnologiesUnlocked(const TArray<FDataTableRowHandle>& RequiredTechs, 
+                                               const TArray<FDataTableRowHandle>& UnlockedTechs)
+{
+    return AreTechnologiesUnlockedInternal(RequiredTechs, UnlockedTechs);
+}
+
+TArray<FDataTableRowHandle> UDataTableManager::GetMissingTechnologies(
+    const TArray<FDataTableRowHandle>& RequiredTechs, 
+    const TArray<FDataTableRowHandle>& UnlockedTechs)
+{
+    TArray<FDataTableRowHandle> MissingTechs;
+    
+    for (const FDataTableRowHandle& RequiredTech : RequiredTechs)
+    {
+        bool bTechFound = false;
+        
+        for (const FDataTableRowHandle& UnlockedTech : UnlockedTechs)
+        {
+            if (RequiredTech.RowName == UnlockedTech.RowName && 
+                RequiredTech.DataTable == UnlockedTech.DataTable)
+            {
+                bTechFound = true;
+                break;
+            }
+        }
+        
+        if (!bTechFound)
+        {
+            MissingTechs.Add(RequiredTech);
+        }
+    }
+    
+    return MissingTechs;
+}
+
+bool UDataTableManager::CanBuildFactory(UFactoryDefinition* FactoryDef, 
+                                       const TArray<FDataTableRowHandle>& UnlockedTechs)
+{
+    if (!FactoryDef)
+    {
+        return false;
+    }
+    
+    return AreTechnologiesUnlockedInternal(FactoryDef->RequiredTechnologies, UnlockedTechs);
+}
+
+bool UDataTableManager::CanBuildDeposit(UDepositDefinition* DepositDef, 
+                                       const TArray<FDataTableRowHandle>& UnlockedTechs)
+{
+    if (!DepositDef)
+    {
+        return false;
+    }
+    
+    return AreTechnologiesUnlockedInternal(DepositDef->RequiredTechnologies, UnlockedTechs);
+}
+
+bool UDataTableManager::CanBuildHub(UHubDefinition* HubDef, 
+                                   const TArray<FDataTableRowHandle>& UnlockedTechs)
+{
+    if (!HubDef)
+    {
+        return false;
+    }
+    
+    return AreTechnologiesUnlockedInternal(HubDef->RequiredTechnologies, UnlockedTechs);
+}
+
+bool UDataTableManager::CanBuildRoad(URoadDefinition* RoadDef, 
+                                    const TArray<FDataTableRowHandle>& UnlockedTechs)
+{
+    if (!RoadDef)
+    {
+        return false;
+    }
+    
+    return AreTechnologiesUnlockedInternal(RoadDef->RequiredTechnologies, UnlockedTechs);
+}
+
+bool UDataTableManager::CanUseVehicle(UVehicleDefinition* VehicleDef, 
+                                     const TArray<FDataTableRowHandle>& UnlockedTechs)
+{
+    if (!VehicleDef)
+    {
+        return false;
+    }
+    
+    return AreTechnologiesUnlockedInternal(VehicleDef->RequiredTechnologies, UnlockedTechs);
+}
+
+bool UDataTableManager::CanBuildDemandPoint(UDemandDefinition* DemandDef, 
+                                           const TArray<FDataTableRowHandle>& UnlockedTechs)
+{
+    if (!DemandDef)
+    {
+        return false;
+    }
+    
+    return AreTechnologiesUnlockedInternal(DemandDef->RequiredTechnologies, UnlockedTechs);
+}
+
+bool UDataTableManager::CanUseRecipe(const FDataTableRowHandle& RecipeRef, 
+                                    const TArray<FDataTableRowHandle>& UnlockedTechs)
+{
+    FProductionRecipe Recipe;
+    if (!GetProductionRecipeByReference(RecipeRef, Recipe))
+    {
+        return false;
+    }
+    
+    return AreTechnologiesUnlockedInternal(Recipe.RequiredUpgrades, UnlockedTechs);
+}
+
+// === TECHNOLOGY TREE FUNCTIONS ===
+TArray<FUpgradeTableRow> UDataTableManager::GetAvailableResearch(
+    const TArray<FDataTableRowHandle>& CompletedTechs)
+{
+    TArray<FUpgradeTableRow> AvailableResearch;
+    TArray<FUpgradeTableRow> AllUpgrades = GetAllUpgrades();
+    
+    for (const FUpgradeTableRow& Upgrade : AllUpgrades)
+    {
+        // Sprawdź czy upgrade nie jest już ukończony
+        bool bAlreadyCompleted = false;
+        for (const FDataTableRowHandle& CompletedTech : CompletedTechs)
+        {
+            FDataTableRowHandle UpgradeHandle;
+            UpgradeHandle.DataTable = UpgradeDataTable;
+            UpgradeHandle.RowName = FName(*Upgrade.UpgradeName.ToString());
+            
+            if (CompletedTech.RowName == UpgradeHandle.RowName)
+            {
+                bAlreadyCompleted = true;
+                break;
+            }
+        }
+        
+        if (bAlreadyCompleted)
+        {
+            continue;
+        }
+        
+        // Sprawdź czy prerequisites są spełnione
+        FDataTableRowHandle UpgradeRef;
+        UpgradeRef.DataTable = UpgradeDataTable;
+        UpgradeRef.RowName = FName(*Upgrade.UpgradeName.ToString());
+        
+        if (AreUpgradePrerequisitesMet(UpgradeRef, CompletedTechs))
+        {
+            AvailableResearch.Add(Upgrade);
+        }
+    }
+    
+    return AvailableResearch;
+}
+
+TArray<FUpgradeTableRow> UDataTableManager::GetTechsByPrerequisite(
+    const FDataTableRowHandle& PrerequisiteTech)
+{
+    TArray<FUpgradeTableRow> DependentTechs;
+    TArray<FUpgradeTableRow> AllUpgrades = GetAllUpgrades();
+    
+    for (const FUpgradeTableRow& Upgrade : AllUpgrades)
+    {
+        for (const FUpgradeRequirement& Prereq : Upgrade.Prerequisites)
+        {
+            if (Prereq.RequiredUpgradeReference.RowName == PrerequisiteTech.RowName &&
+                Prereq.RequiredUpgradeReference.DataTable == PrerequisiteTech.DataTable)
+            {
+                DependentTechs.Add(Upgrade);
+                break;
+            }
+        }
+    }
+    
+    return DependentTechs;
+}
+
+TArray<UFactoryDefinition*> UDataTableManager::GetUnlockedFactories(
+    const TArray<FDataTableRowHandle>& UnlockedTechs)
+{
+    TArray<UFactoryDefinition*> UnlockedFactories;
+    
+    for (UFactoryDefinition* Factory : FactoryDefinitions)
+    {
+        if (Factory && CanBuildFactory(Factory, UnlockedTechs))
+        {
+            UnlockedFactories.Add(Factory);
+        }
+    }
+    
+    return UnlockedFactories;
+}
+
+TArray<UDepositDefinition*> UDataTableManager::GetUnlockedDeposits(
+    const TArray<FDataTableRowHandle>& UnlockedTechs)
+{
+    TArray<UDepositDefinition*> UnlockedDeposits;
+    
+    for (UDepositDefinition* Deposit : DepositDefinitions)
+    {
+        if (Deposit && CanBuildDeposit(Deposit, UnlockedTechs))
+        {
+            UnlockedDeposits.Add(Deposit);
+        }
+    }
+    
+    return UnlockedDeposits;
+}
+
+TArray<UVehicleDefinition*> UDataTableManager::GetUnlockedVehicles(
+    const TArray<FDataTableRowHandle>& UnlockedTechs)
+{
+    TArray<UVehicleDefinition*> UnlockedVehicles;
+    
+    for (UVehicleDefinition* Vehicle : VehicleDefinitions)
+    {
+        if (Vehicle && CanUseVehicle(Vehicle, UnlockedTechs))
+        {
+            UnlockedVehicles.Add(Vehicle);
+        }
+    }
+    
+    return UnlockedVehicles;
+}
+
+TArray<URoadDefinition*> UDataTableManager::GetUnlockedRoads(
+    const TArray<FDataTableRowHandle>& UnlockedTechs)
+{
+    TArray<URoadDefinition*> UnlockedRoads;
+    
+    for (URoadDefinition* Road : RoadDefinitions)
+    {
+        if (Road && CanBuildRoad(Road, UnlockedTechs))
+        {
+            UnlockedRoads.Add(Road);
+        }
+    }
+    
+    return UnlockedRoads;
+}
+
+TArray<UHubDefinition*> UDataTableManager::GetUnlockedHubs(
+    const TArray<FDataTableRowHandle>& UnlockedTechs)
+{
+    TArray<UHubDefinition*> UnlockedHubs;
+    
+    for (UHubDefinition* Hub : HubDefinitions)
+    {
+        if (Hub && CanBuildHub(Hub, UnlockedTechs))
+        {
+            UnlockedHubs.Add(Hub);
+        }
+    }
+    
+    return UnlockedHubs;
+}
+
+TArray<UDemandDefinition*> UDataTableManager::GetUnlockedDemandPoints(
+    const TArray<FDataTableRowHandle>& UnlockedTechs)
+{
+    TArray<UDemandDefinition*> UnlockedDemandPoints;
+    
+    for (UDemandDefinition* DemandPoint : DemandDefinitions)
+    {
+        if (DemandPoint && CanBuildDemandPoint(DemandPoint, UnlockedTechs))
+        {
+            UnlockedDemandPoints.Add(DemandPoint);
+        }
+    }
+    
+    return UnlockedDemandPoints;
+}
+
 // === DATAASSET FUNCTIONS ===
 UFactoryDefinition* UDataTableManager::GetFactoryDefinitionByName(const FString& FactoryName)
 {
@@ -606,7 +881,7 @@ void UDataTableManager::PrintAllResourceData()
 {
     TArray<FResourceTableRow> AllResources = GetAllResources();
     
-    UE_LOG(LogTemp, Log, TEXT("=== ALL RESOURCE DATA (Reference System) ==="));
+    UE_LOG(LogTemp, Log, TEXT("=== ALL RESOURCE DATA (Unified Tech Reference System) ==="));
     for (const FResourceTableRow& Resource : AllResources)
     {
         UE_LOG(LogTemp, Log, TEXT("Name: %s, Type: %s"), 
@@ -619,7 +894,7 @@ void UDataTableManager::PrintAllRecipeData()
 {
     TArray<FProductionRecipe> AllRecipes = GetAllRecipes();
     
-    UE_LOG(LogTemp, Log, TEXT("=== ALL RECIPE DATA (Reference System) ==="));
+    UE_LOG(LogTemp, Log, TEXT("=== ALL RECIPE DATA (Unified Tech Reference System) ==="));
     for (const FProductionRecipe& Recipe : AllRecipes)
     {
         FString OutputResourceName = GetResourceNameFromReference(Recipe.OutputResourceReference);
@@ -634,7 +909,7 @@ void UDataTableManager::PrintAllUpgradeData()
 {
     TArray<FUpgradeTableRow> AllUpgrades = GetAllUpgrades();
     
-    UE_LOG(LogTemp, Log, TEXT("=== ALL UPGRADE DATA (Reference System) ==="));
+    UE_LOG(LogTemp, Log, TEXT("=== ALL UPGRADE DATA (Unified Tech Reference System) ==="));
     for (const FUpgradeTableRow& Upgrade : AllUpgrades)
     {
         UE_LOG(LogTemp, Log, TEXT("Name: %s, Category: %s, Type: %s, Cost: %.0f, Tech Level: %d"), 
@@ -646,9 +921,43 @@ void UDataTableManager::PrintAllUpgradeData()
     }
 }
 
+void UDataTableManager::PrintTechnologyTree(const TArray<FDataTableRowHandle>& UnlockedTechs)
+{
+    UE_LOG(LogTemp, Log, TEXT("=== TECHNOLOGY TREE STATUS ==="));
+    
+    TArray<FUpgradeTableRow> AllUpgrades = GetAllUpgrades();
+    TArray<FUpgradeTableRow> AvailableResearch = GetAvailableResearch(UnlockedTechs);
+    
+    UE_LOG(LogTemp, Log, TEXT("Unlocked Technologies: %d"), UnlockedTechs.Num());
+    for (const FDataTableRowHandle& UnlockedTech : UnlockedTechs)
+    {
+        FString TechName = GetUpgradeNameFromReference(UnlockedTech);
+        UE_LOG(LogTemp, Log, TEXT("  ✓ %s"), *TechName);
+    }
+    
+    UE_LOG(LogTemp, Log, TEXT("Available Research: %d"), AvailableResearch.Num());
+    for (const FUpgradeTableRow& AvailableTech : AvailableResearch)
+    {
+        UE_LOG(LogTemp, Log, TEXT("  → %s (Cost: %.0f, Level: %d)"), 
+            *AvailableTech.UpgradeName.ToString(),
+            AvailableTech.ResearchCost,
+            AvailableTech.TechLevel);
+    }
+    
+    UE_LOG(LogTemp, Log, TEXT("Unlocked Buildings:"));
+    TArray<UFactoryDefinition*> UnlockedFactories = GetUnlockedFactories(UnlockedTechs);
+    UE_LOG(LogTemp, Log, TEXT("  Factories: %d"), UnlockedFactories.Num());
+    
+    TArray<UDepositDefinition*> UnlockedDeposits = GetUnlockedDeposits(UnlockedTechs);
+    UE_LOG(LogTemp, Log, TEXT("  Deposits: %d"), UnlockedDeposits.Num());
+    
+    TArray<UVehicleDefinition*> UnlockedVehicles = GetUnlockedVehicles(UnlockedTechs);
+    UE_LOG(LogTemp, Log, TEXT("  Vehicles: %d"), UnlockedVehicles.Num());
+}
+
 void UDataTableManager::ValidateDataIntegrity()
 {
-    UE_LOG(LogTemp, Log, TEXT("DataTableManager: Validating data integrity (Reference System)..."));
+    UE_LOG(LogTemp, Log, TEXT("DataTableManager: Validating data integrity (Unified Tech Reference System)..."));
     
     bool bValid = true;
     
@@ -663,6 +972,11 @@ void UDataTableManager::ValidateDataIntegrity()
     }
     
     if (!ValidateUpgradeReferences())
+    {
+        bValid = false;
+    }
+    
+    if (!ValidateTechnologyReferences())
     {
         bValid = false;
     }
@@ -711,6 +1025,32 @@ FUpgradeTableRow* UDataTableManager::GetUpgradeDataInternal(const FDataTableRowH
 bool UDataTableManager::IsDataTableRowHandleValid(const FDataTableRowHandle& Handle) const
 {
     return (Handle.DataTable != nullptr && !Handle.RowName.IsNone());
+}
+
+bool UDataTableManager::AreTechnologiesUnlockedInternal(const TArray<FDataTableRowHandle>& RequiredTechs, 
+                                                       const TArray<FDataTableRowHandle>& UnlockedTechs) const
+{
+    for (const FDataTableRowHandle& RequiredTech : RequiredTechs)
+    {
+        bool bTechFound = false;
+        
+        for (const FDataTableRowHandle& UnlockedTech : UnlockedTechs)
+        {
+            if (RequiredTech.RowName == UnlockedTech.RowName && 
+                RequiredTech.DataTable == UnlockedTech.DataTable)
+            {
+                bTechFound = true;
+                break;
+            }
+        }
+        
+        if (!bTechFound)
+        {
+            return false;
+        }
+    }
+    
+    return true;
 }
 
 bool UDataTableManager::ValidateResourceReferences()
@@ -813,9 +1153,120 @@ bool UDataTableManager::ValidateUpgradeReferences()
     return bValid;
 }
 
+bool UDataTableManager::ValidateTechnologyReferences()
+{
+    bool bValid = true;
+    
+    UE_LOG(LogTemp, Log, TEXT("DataTableManager: Validating technology references in Data Assets..."));
+    
+    // Validate Factory technologies
+    for (UFactoryDefinition* Factory : FactoryDefinitions)
+    {
+        if (Factory)
+        {
+            for (const FDataTableRowHandle& TechRef : Factory->RequiredTechnologies)
+            {
+                if (!IsValidUpgradeReference(TechRef))
+                {
+                    UE_LOG(LogTemp, Error, TEXT("Factory '%s' has invalid technology reference"), 
+                        *Factory->FactoryName.ToString());
+                    bValid = false;
+                }
+            }
+        }
+    }
+    
+    // Validate Deposit technologies
+    for (UDepositDefinition* Deposit : DepositDefinitions)
+    {
+        if (Deposit)
+        {
+            for (const FDataTableRowHandle& TechRef : Deposit->RequiredTechnologies)
+            {
+                if (!IsValidUpgradeReference(TechRef))
+                {
+                    UE_LOG(LogTemp, Error, TEXT("Deposit '%s' has invalid technology reference"), 
+                        *Deposit->DepositName.ToString());
+                    bValid = false;
+                }
+            }
+        }
+    }
+    
+    // Validate Hub technologies
+    for (UHubDefinition* Hub : HubDefinitions)
+    {
+        if (Hub)
+        {
+            for (const FDataTableRowHandle& TechRef : Hub->RequiredTechnologies)
+            {
+                if (!IsValidUpgradeReference(TechRef))
+                {
+                    UE_LOG(LogTemp, Error, TEXT("Hub '%s' has invalid technology reference"), 
+                        *Hub->HubName.ToString());
+                    bValid = false;
+                }
+            }
+        }
+    }
+    
+    // Validate Vehicle technologies
+    for (UVehicleDefinition* Vehicle : VehicleDefinitions)
+    {
+        if (Vehicle)
+        {
+            for (const FDataTableRowHandle& TechRef : Vehicle->RequiredTechnologies)
+            {
+                if (!IsValidUpgradeReference(TechRef))
+                {
+                    UE_LOG(LogTemp, Error, TEXT("Vehicle '%s' has invalid technology reference"), 
+                        *Vehicle->VehicleName.ToString());
+                    bValid = false;
+                }
+            }
+        }
+    }
+    
+    // Validate Road technologies
+    for (URoadDefinition* Road : RoadDefinitions)
+    {
+        if (Road)
+        {
+            for (const FDataTableRowHandle& TechRef : Road->RequiredTechnologies)
+            {
+                if (!IsValidUpgradeReference(TechRef))
+                {
+                    UE_LOG(LogTemp, Error, TEXT("Road '%s' has invalid technology reference"), 
+                        *Road->RoadName.ToString());
+                    bValid = false;
+                }
+            }
+        }
+    }
+    
+    // Validate Demand technologies
+    for (UDemandDefinition* Demand : DemandDefinitions)
+    {
+        if (Demand)
+        {
+            for (const FDataTableRowHandle& TechRef : Demand->RequiredTechnologies)
+            {
+                if (!IsValidUpgradeReference(TechRef))
+                {
+                    UE_LOG(LogTemp, Error, TEXT("Demand Point '%s' has invalid technology reference"), 
+                        *Demand->DemandPointName.ToString());
+                    bValid = false;
+                }
+            }
+        }
+    }
+    
+    return bValid;
+}
+
 void UDataTableManager::LogDataTableStats()
 {
-    UE_LOG(LogTemp, Log, TEXT("=== DATA TABLE STATISTICS (Reference System) ==="));
+    UE_LOG(LogTemp, Log, TEXT("=== DATA TABLE STATISTICS (Unified Tech Reference System) ==="));
     UE_LOG(LogTemp, Log, TEXT("Resources: %d"), GetAllResources().Num());
     UE_LOG(LogTemp, Log, TEXT("Recipes: %d"), GetAllRecipes().Num());
     UE_LOG(LogTemp, Log, TEXT("Transport Routes: %d"), GetAllRoutes().Num());

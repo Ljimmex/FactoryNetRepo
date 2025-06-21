@@ -92,6 +92,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Requirements")
     bool RequiresHub;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Requirements")
-    TArray<int32> RequiredTechnologies;
+    // ✅ ZMIENIONE: Używamy teraz referencji do upgradów zamiast surowych ID
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Requirements", 
+              meta = (RowType = "UpgradeTableRow"))
+    TArray<FDataTableRowHandle> RequiredTechnologies;
 };

@@ -6,6 +6,7 @@
 #include "Engine/DataAsset.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture2D.h"
+#include "Engine/DataTable.h"
 #include "Data/TransportData.h"
 #include "VehicleDefinition.generated.h"
 
@@ -70,4 +71,9 @@ public:
     // References to supported road types instead of IDs
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Requirements", meta = (AllowedClasses = "RoadDefinition"))
     TArray<TSoftObjectPtr<URoadDefinition>> SupportedRoadTypes;
+
+    // ✅ DODANE: Wymagane technologie dla pojazdu
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Requirements", 
+              meta = (RowType = "UpgradeTableRow"))
+    TArray<FDataTableRowHandle> RequiredTechnologies;
 };
