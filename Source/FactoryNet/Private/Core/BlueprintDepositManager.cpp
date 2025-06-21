@@ -88,7 +88,7 @@ void ABlueprintDepositManager::BeginPlay()
             if (DelayTime > 0.0f)
             {
                 GetWorldTimerManager().SetTimer(
-                    FTimerHandle(), 
+                    DelayedSpawnTimerHandle, 
                     this, 
                     &ABlueprintDepositManager::DelayedGeneration, 
                     DelayTime, 
@@ -131,6 +131,12 @@ void ABlueprintDepositManager::BeginPlay()
 
 void ABlueprintDepositManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+    // Clear any pending timers
+    if (DelayedSpawnTimerHandle.IsValid())
+    {
+        GetWorldTimerManager().ClearTimer(DelayedSpawnTimerHandle);
+    }
+
     // Unbind events
     if (SpawnManager)
     {
@@ -504,109 +510,6 @@ void ABlueprintDepositManager::SetupSpawnArea()
                *Center.ToString(), *Size.ToString());
     }
 }
-
-// ZAKOMENTOWANE FUNKCJE ZWIĄZANE Z TRANSPORTHUB (do użycia gdy TransportHub będzie gotowy)
-/*
-void ABlueprintDepositManager::ConnectDepositsToHubs()
-{
-    if (!SpawnManager)
-    {
-        return;
-    }
-
-    TArray<AResourceDeposit*> AllDeposits = SpawnManager->GetAllSpawnedDeposits();
-    int32 ConnectedCount = 0;
-    int32 HubsCreatedCount = 0;
-    
-    for (AResourceDeposit* Deposit : AllDeposits)
-    {
-        if (!Deposit || !Deposit->RequiresHub()) 
-        {
-            continue;
-        }
-
-        ATransportHub* NearestHub = FindNearestHub(Deposit->GetActorLocation());
-        
-        if (NearestHub)
-        {
-            float Distance = FVector::Dist(Deposit->GetActorLocation(), 
-                                         NearestHub->GetActorLocation());
-            
-            if (Distance <= HubSearchRadius)
-            {
-                Deposit->ConnectToHub(NearestHub);
-                ConnectedCount++;
-                
-                if (bLogSpawnProcess)
-                {
-                    UE_LOG(LogTemp, VeryVerbose, TEXT("BlueprintDepositManager: Connected %s to Hub at distance %.0f"), 
-                        *Deposit->GetDepositName().ToString(), Distance);
-                }
-            }
-        }
-        else if (bAutoCreateHubsIfNeeded)
-        {
-            SpawnHubForDeposit(Deposit);
-            HubsCreatedCount++;
-        }
-    }
-
-    if (bLogSpawnProcess)
-    {
-        UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Connected %d deposits to hubs, created %d new hubs"), 
-               ConnectedCount, HubsCreatedCount);
-    }
-}
-
-ATransportHub* ABlueprintDepositManager::FindNearestHub(const FVector& Location) const
-{
-    TArray<AActor*> FoundHubs;
-    UGameplayStatics::GetAllActorsOfClass(GetWorld(), ATransportHub::StaticClass(), FoundHubs);
-    
-    ATransportHub* NearestHub = nullptr;
-    float NearestDistance = FLT_MAX;
-    
-    for (AActor* Actor : FoundHubs)
-    {
-        ATransportHub* Hub = Cast<ATransportHub>(Actor);
-        if (Hub)
-        {
-            float Distance = FVector::Dist(Location, Hub->GetActorLocation());
-            if (Distance < NearestDistance && Distance <= HubSearchRadius)
-            {
-                NearestDistance = Distance;
-                NearestHub = Hub;
-            }
-        }
-    }
-    
-    return NearestHub;
-}
-
-void ABlueprintDepositManager::SpawnHubForDeposit(AResourceDeposit* Deposit)
-{
-    if (!Deposit)
-    {
-        return;
-    }
-
-    // TODO: Implement hub spawning logic
-    // This would require access to HubDefinition and hub spawning system
-    // For now, just log the request
-    
-    if (bLogSpawnProcess)
-    {
-        UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Auto-spawn hub requested for %s (not implemented)"), 
-               *Deposit->GetDepositName().ToString());
-    }
-
-    // Future implementation would:
-    // 1. Get default hub definition from DataTableManager
-    // 2. Find suitable location near deposit
-    // 3. Spawn hub actor
-    // 4. Connect deposit to new hub
-}
-*/
 
 void ABlueprintDepositManager::OnDepositSpawned(AResourceDeposit* Deposit, FVector Location)
 {

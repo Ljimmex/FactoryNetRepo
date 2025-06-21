@@ -5,13 +5,16 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Core/DepositSpawnManager.h"
+#include "Data/DepositDefinition.h"
 #include "Components/BillboardComponent.h"
 #include "Components/BoxComponent.h"
+#include "TimerManager.h"
 #include "BlueprintDepositManager.generated.h"
 
 // Forward declarations
-// class ATransportHub; // ZAKOMENTOWANE - nie istnieje jeszcze
 class AResourceDeposit;
+class UDepositDefinition;
+// class ATransportHub; // ZAKOMENTOWANE - nie istnieje jeszcze
 
 UENUM(BlueprintType)
 enum class ESpawnTriggerType : uint8
@@ -205,6 +208,9 @@ private:
     TArray<AResourceDeposit*> SpawnedDeposits;
 
     bool bHasGenerated = false;
+
+    // Timer handle for delayed spawning
+    FTimerHandle DelayedSpawnTimerHandle;
 
     // === INTERNAL FUNCTIONS ===
     void InitializeSpawnManager();

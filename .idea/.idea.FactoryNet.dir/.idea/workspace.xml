@@ -8,13 +8,29 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0fe1c858-015e-46a7-a2be-0f59384e2b76" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/Source/FactoryNet/Private/Buildings/Base/ResourceDeposit.cpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Source/FactoryNet/Private/Core/BlueprintDepositManager.cpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Source/FactoryNet/Private/Core/DepositSpawnManager.cpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Source/FactoryNet/Public/Buildings/Base/ResourceDeposit.h" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Source/FactoryNet/Public/Core/BlueprintDepositManager.h" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Source/FactoryNet/Public/Core/DepositSpawnManager.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Source/FactoryNet/Private/Components/ResourceStorageComponent.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Source/FactoryNet/Public/Components/ResourceStorageComponent.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.idea.FactoryNet.dir/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.FactoryNet.dir/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Config/DefaultEditor.ini" beforeDir="false" afterPath="$PROJECT_DIR$/Config/DefaultEditor.ini" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/Data/DataAssets/Deposits/DA_Coal.uasset" beforeDir="false" afterPath="$PROJECT_DIR$/Content/Data/DataAssets/Deposits/DA_Coal.uasset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/Data/DataAssets/Deposits/DA_IronOre.uasset" beforeDir="false" afterPath="$PROJECT_DIR$/Content/Data/DataAssets/Deposits/DA_IronOre.uasset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/Data/DataAssets/Deposits/DA_Oil.uasset" beforeDir="false" afterPath="$PROJECT_DIR$/Content/Data/DataAssets/Deposits/DA_Oil.uasset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/Data/DataAssets/Deposits/DA_Stone.uasset" beforeDir="false" afterPath="$PROJECT_DIR$/Content/Data/DataAssets/Deposits/DA_Stone.uasset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/Data/DataAssets/Deposits/DA_Wheat.uasset" beforeDir="false" afterPath="$PROJECT_DIR$/Content/Data/DataAssets/Deposits/DA_Wheat.uasset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/Data/DataAssets/Deposits/DA_Wood.uasset" beforeDir="false" afterPath="$PROJECT_DIR$/Content/Data/DataAssets/Deposits/DA_Wood.uasset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/Data/DataAssets/Factories/DA_CarFactory.uasset" beforeDir="false" afterPath="$PROJECT_DIR$/Content/Data/DataAssets/Factories/DA_CarFactory.uasset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/Data/DataAssets/Factories/DA_FlourMill.uasset" beforeDir="false" afterPath="$PROJECT_DIR$/Content/Data/DataAssets/Factories/DA_FlourMill.uasset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/Data/DataAssets/Factories/DA_FoodFactory.uasset" beforeDir="false" afterPath="$PROJECT_DIR$/Content/Data/DataAssets/Factories/DA_FoodFactory.uasset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/Data/DataAssets/Factories/DA_IronSmelter.uasset" beforeDir="false" afterPath="$PROJECT_DIR$/Content/Data/DataAssets/Factories/DA_IronSmelter.uasset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/Data/DataAssets/Factories/DA_MachineryFactory.uasset" beforeDir="false" afterPath="$PROJECT_DIR$/Content/Data/DataAssets/Factories/DA_MachineryFactory.uasset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/Data/DataAssets/Factories/DA_PlasticFactory.uasset" beforeDir="false" afterPath="$PROJECT_DIR$/Content/Data/DataAssets/Factories/DA_PlasticFactory.uasset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Source/FactoryNet/FactoryNet.Build.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Source/FactoryNet/FactoryNet.Build.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Source/FactoryNet/Private/Buildings/Base/ResourceDeposit.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/Source/FactoryNet/Private/Buildings/Base/ResourceDeposit.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Source/FactoryNet/Private/Core/BlueprintDepositManager.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/Source/FactoryNet/Private/Core/BlueprintDepositManager.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Source/FactoryNet/Private/Core/DepositSpawnManager.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/Source/FactoryNet/Private/Core/DepositSpawnManager.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Source/FactoryNet/Public/Buildings/Base/ResourceDeposit.h" beforeDir="false" afterPath="$PROJECT_DIR$/Source/FactoryNet/Public/Buildings/Base/ResourceDeposit.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Source/FactoryNet/Public/Core/BlueprintDepositManager.h" beforeDir="false" afterPath="$PROJECT_DIR$/Source/FactoryNet/Public/Core/BlueprintDepositManager.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Source/FactoryNet/Public/Core/DepositSpawnManager.h" beforeDir="false" afterPath="$PROJECT_DIR$/Source/FactoryNet/Public/Core/DepositSpawnManager.h" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -173,7 +189,8 @@
       <workItem from="1750457309148" duration="3325000" />
       <workItem from="1750462001968" duration="2042000" />
       <workItem from="1750500901335" duration="2558000" />
-      <workItem from="1750524157260" duration="1582000" />
+      <workItem from="1750524157260" duration="2966000" />
+      <workItem from="1750539728984" duration="303000" />
     </task>
     <servers />
   </component>

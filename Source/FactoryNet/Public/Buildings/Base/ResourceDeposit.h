@@ -12,9 +12,9 @@
 #include "ResourceDeposit.generated.h"
 
 // Forward declarations
-class UHubDefinition;
-class ATransportHub;
 class UDepositDefinition;
+// Temporarily commented out until TransportHub is implemented
+// class ATransportHub;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnResourceExtracted, AResourceDeposit*, Deposit, FDataTableRowHandle, ResourceType, int32, Amount);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDepositDepleted, AResourceDeposit*, Deposit);
@@ -73,7 +73,9 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Level")
     int32 GetMaxLevel() const;
 
-    // === HUB INTEGRATION ===
+    // === HUB INTEGRATION (TEMPORARILY DISABLED) ===
+    // Uncomment when TransportHub is implemented
+    /*
     UFUNCTION(BlueprintCallable, Category = "Hub")
     void ConnectToHub(ATransportHub* Hub);
 
@@ -85,6 +87,7 @@ public:
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Hub")
     bool IsConnectedToHub() const { return ConnectedHub != nullptr; }
+    */
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Hub")
     bool RequiresHub() const;
@@ -152,9 +155,12 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Deposit State")
     float LastExtractionTime;
 
-    // === HUB CONNECTION ===
+    // === HUB CONNECTION (TEMPORARILY DISABLED) ===
+    // Uncomment when TransportHub is implemented
+    /*
     UPROPERTY(BlueprintReadOnly, Category = "Hub")
     ATransportHub* ConnectedHub;
+    */
 
     // === AUTO EXTRACTION ===
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Auto Extraction")

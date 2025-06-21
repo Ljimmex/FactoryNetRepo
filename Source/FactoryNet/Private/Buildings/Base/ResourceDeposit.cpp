@@ -6,7 +6,8 @@
 #include "Components/SceneComponent.h"
 #include "Components/ResourceStorageComponent.h"
 #include "Data/DepositDefinition.h"
-#include "Buildings/Base/TransportHub.h"
+// Temporarily commented out until TransportHub is implemented
+// #include "Buildings/Base/TransportHub.h"
 #include "Core/DataTableManager.h"
 #include "Engine/Engine.h"
 #include "DrawDebugHelpers.h"
@@ -28,7 +29,7 @@ AResourceDeposit::AResourceDeposit()
     CurrentLevel = 1;
     CurrentReserves = 0;
     LastExtractionTime = 0.0f;
-    ConnectedHub = nullptr;
+    // ConnectedHub = nullptr; // Commented out until TransportHub is implemented
     bAutoExtractToStorage = true;
     ExtractionTickRate = 1.0f;
     bShowDebugInfo = false;
@@ -255,6 +256,8 @@ int32 AResourceDeposit::GetMaxLevel() const
     return DepositDefinition->MaxLevel;
 }
 
+// TEMPORARILY DISABLED HUB FUNCTIONS (Uncomment when TransportHub is implemented)
+/*
 void AResourceDeposit::ConnectToHub(ATransportHub* Hub)
 {
     if (!Hub)
@@ -282,6 +285,7 @@ void AResourceDeposit::DisconnectFromHub()
         ConnectedHub = nullptr;
     }
 }
+*/
 
 bool AResourceDeposit::RequiresHub() const
 {

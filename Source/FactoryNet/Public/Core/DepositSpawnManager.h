@@ -11,7 +11,8 @@
 // Forward declarations
 class AResourceDeposit;
 class UDataTableManager;
-class ALandscape;
+class UDepositDefinition;
+// class ALandscape; // Commented out - not used yet
 
 UENUM(BlueprintType)
 enum class EDepositDensity : uint8

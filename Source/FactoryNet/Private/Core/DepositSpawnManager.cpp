@@ -7,6 +7,7 @@
 #include "Data/DepositDefinition.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
+#include "Engine/GameInstance.h"
 #include "DrawDebugHelpers.h"
 #include "Components/StaticMeshComponent.h"
 
@@ -20,9 +21,12 @@ void UDepositSpawnManager::Initialize(FSubsystemCollectionBase& Collection)
     Super::Initialize(Collection);
     
     // Pobierz DataTableManager z GameInstance
-    if (UGameInstance* GameInstance = GetGameInstance())
+    if (UWorld* World = GetWorld())
     {
-        DataTableManager = GameInstance->GetSubsystem<UDataTableManager>();
+        if (UGameInstance* GameInstance = World->GetGameInstance())
+        {
+            DataTableManager = GameInstance->GetSubsystem<UDataTableManager>();
+        }
     }
     
     if (!DataTableManager)
@@ -139,16 +143,24 @@ AResourceDeposit* UDepositSpawnManager::SpawnDepositAtLocation(UDepositDefinitio
                                                              const FVector& Location, 
                                                              const FRotator& Rotation)
 {
-    if (!DepositDef || !GetWorld())
+    if (!DepositDef)
     {
+        UE_LOG(LogTemp, Error, TEXT("DepositSpawnManager: DepositDef is null"));
         return nullptr;
     }
-    
+
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        UE_LOG(LogTemp, Error, TEXT("DepositSpawnManager: World is null"));
+        return nullptr;
+    }
+
     // Spawn the deposit actor
     FActorSpawnParameters SpawnParams;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
     
-    AResourceDeposit* SpawnedDeposit = GetWorld()->SpawnActor<AResourceDeposit>(
+    AResourceDeposit* SpawnedDeposit = World->SpawnActor<AResourceDeposit>(
         AResourceDeposit::StaticClass(), Location, Rotation, SpawnParams);
     
     if (SpawnedDeposit)
@@ -171,6 +183,10 @@ AResourceDeposit* UDepositSpawnManager::SpawnDepositAtLocation(UDepositDefinitio
         
         UE_LOG(LogTemp, Log, TEXT("DepositSpawnManager: Successfully spawned %s at %s"), 
             *DepositDef->DepositName.ToString(), *Location.ToString());
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("DepositSpawnManager: Failed to spawn deposit actor"));
     }
     
     return SpawnedDeposit;
