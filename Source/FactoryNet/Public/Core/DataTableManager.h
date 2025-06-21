@@ -8,6 +8,7 @@
 #include "Data/ResourceData.h"
 #include "Data/ProductionData.h"
 #include "Data/TransportData.h"
+#include "Data/UpgradeData.h"
 #include "DataTableManager.generated.h"
 
 // Forward Declarations
@@ -84,6 +85,31 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Transport")
     TArray<FTransportRoute> GetRoutesToHub(UHubDefinition* HubDef);
 
+    // === UPGRADE FUNCTIONS ===
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Upgrades")
+    bool GetUpgradeDataByReference(const FDataTableRowHandle& UpgradeReference, FUpgradeTableRow& OutUpgradeData);
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Upgrades")
+    TArray<FUpgradeTableRow> GetAllUpgrades();
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Upgrades")
+    TArray<FUpgradeTableRow> GetUpgradesByCategory(EUpgradeCategory Category);
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Upgrades")
+    TArray<FUpgradeTableRow> GetUpgradesByType(EUpgradeType Type);
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Upgrades")
+    TArray<FUpgradeTableRow> GetUpgradesByTechLevel(int32 TechLevel);
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Upgrades")
+    bool IsValidUpgradeReference(const FDataTableRowHandle& UpgradeReference);
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Upgrades")
+    FString GetUpgradeNameFromReference(const FDataTableRowHandle& UpgradeReference);
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Upgrades")
+    bool AreUpgradePrerequisitesMet(const FDataTableRowHandle& UpgradeReference, const TArray<FDataTableRowHandle>& CompletedUpgrades);
+
     // === DATAASSET FUNCTIONS ===
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Factory Definitions")
     UFactoryDefinition* GetFactoryDefinitionByName(const FString& FactoryName);
@@ -117,12 +143,18 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Helper")
     FDataTableRowHandle FindRecipeReferenceByName(const FString& RecipeName);
 
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Helper")
+    FDataTableRowHandle FindUpgradeReferenceByName(const FString& UpgradeName);
+
     // === DEBUG FUNCTIONS ===
     UFUNCTION(BlueprintCallable, Category = "Debug")
     void PrintAllResourceData();
 
     UFUNCTION(BlueprintCallable, Category = "Debug")
     void PrintAllRecipeData();
+
+    UFUNCTION(BlueprintCallable, Category = "Debug")
+    void PrintAllUpgradeData();
 
     UFUNCTION(BlueprintCallable, Category = "Debug")
     void ValidateDataIntegrity();
@@ -137,6 +169,9 @@ protected:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data Tables")
     UDataTable* TransportDataTable;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data Tables")
+    UDataTable* UpgradeDataTable;
 
     // === DATAASSET COLLECTIONS ===
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data Assets")
@@ -166,11 +201,13 @@ private:
     void LoadDataAssets();
     bool ValidateResourceReferences();
     bool ValidateProductionRecipes();
+    bool ValidateUpgradeReferences();
     void LogDataTableStats();
     
     // Internal helper functions (nie Blueprint callable)
     FResourceTableRow* GetResourceDataInternal(const FDataTableRowHandle& ResourceReference);
     FProductionRecipe* GetProductionRecipeInternal(const FDataTableRowHandle& RecipeReference);
+    FUpgradeTableRow* GetUpgradeDataInternal(const FDataTableRowHandle& UpgradeReference);
     
     // Helper to check if DataTableRowHandle is valid
     bool IsDataTableRowHandleValid(const FDataTableRowHandle& Handle) const;

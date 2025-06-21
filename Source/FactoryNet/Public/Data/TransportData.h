@@ -22,6 +22,24 @@ enum class ETransportType : uint8
     Pipeline    UMETA(DisplayName = "Pipeline")
 };
 
+// Struktura do przechowywania ładunku - musi być zdefiniowana PRZED użyciem
+USTRUCT(BlueprintType)
+struct FACTORYNET_API FCargoItem
+{
+    GENERATED_BODY()
+
+    FCargoItem()
+    {
+        Quantity = 0;
+    }
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cargo", meta = (RowType = "ResourceTableRow"))
+    FDataTableRowHandle ResourceReference;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cargo")
+    int32 Quantity;
+};
+
 USTRUCT(BlueprintType)
 struct FACTORYNET_API FTransportRoute : public FTableRowBase
 {
@@ -67,7 +85,25 @@ struct FACTORYNET_API FTransportRoute : public FTableRowBase
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Status")
     bool IsActive;
 
-    // Cargo manifest with resource references
+    // Zamieniono TMap na TArray z parami - unika problemu z GetTypeHash
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cargo")
-    TMap<FDataTableRowHandle, int32> CargoManifest;
+    TArray<FCargoItem> CargoItems;
 };
+
+// Specjalizacja GetTypeHash dla FDataTableRowHandle (opcjonalna - na wszelki wypadek)
+FORCEINLINE uint32 GetTypeHash(const FDataTableRowHandle& Handle)
+{
+    uint32 Hash = 0;
+    
+    if (Handle.DataTable)
+    {
+        Hash = HashCombine(Hash, GetTypeHash(Handle.DataTable));
+    }
+    
+    if (!Handle.RowName.IsNone())
+    {
+        Hash = HashCombine(Hash, GetTypeHash(Handle.RowName));
+    }
+    
+    return Hash;
+}

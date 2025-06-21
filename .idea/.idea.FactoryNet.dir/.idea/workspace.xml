@@ -8,9 +8,15 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0fe1c858-015e-46a7-a2be-0f59384e2b76" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/Source/FactoryNet/Private/Core/DataTableManager.cpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Source/FactoryNet/Public/Core/DataTableManager.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/FactoryNet.uproject" beforeDir="false" afterPath="$PROJECT_DIR$/FactoryNet.uproject" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.idea.FactoryNet.dir/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.FactoryNet.dir/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/Data/DataAssets/Factories/DA_IronSmelter.uasset" beforeDir="false" afterPath="$PROJECT_DIR$/Content/Data/DataAssets/Factories/DA_IronSmelter.uasset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/Data/DataTables/DT_Produkty.uasset" beforeDir="false" afterPath="$PROJECT_DIR$/Content/Data/DataTables/DT_Produkty.uasset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/Data/DataTables/DT_Surowce.uasset" beforeDir="false" afterPath="$PROJECT_DIR$/Content/Data/DataTables/DT_Surowce.uasset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/Data/DataTables/DT_Transport.uasset" beforeDir="false" afterPath="$PROJECT_DIR$/Content/Data/DataTables/DT_Transport.uasset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Source/FactoryNet/Private/Core/DataTableManager.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/Source/FactoryNet/Private/Core/DataTableManager.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Source/FactoryNet/Public/Core/DataTableManager.h" beforeDir="false" afterPath="$PROJECT_DIR$/Source/FactoryNet/Public/Core/DataTableManager.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Source/FactoryNet/Public/Data/ProductionData.h" beforeDir="false" afterPath="$PROJECT_DIR$/Source/FactoryNet/Public/Data/ProductionData.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Source/FactoryNet/Public/Data/TransportData.h" beforeDir="false" afterPath="$PROJECT_DIR$/Source/FactoryNet/Public/Data/TransportData.h" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -36,24 +42,28 @@
   }
 }</component>
   <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Private/Core/DataTableManager.cpp" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Private/Data/DemandDefinition.cpp" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Private/Data/DepositDefinition.cpp" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Private/Data/FactoryDefinition.cpp" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Private/Data/HubDefinition.cpp" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Private/Data/ProductionData.cpp" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Private/Data/ResourceData.cpp" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Private/Data/RoadDefinition.cpp" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Private/Data/RoadDefinition.cpp" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Private/Data/TransportData.cpp" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Public/Data/DemandDefinition.h" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Public/Data/DepositDefinition.h" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Public/Data/FactoryDefinition.h" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Public/Data/HubDefinition.h" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Public/Data/ProductionData.h" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Public/Data/ResourceData.h" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Public/Data/RoadDefinition.h" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Public/Data/TransportData.h" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Public/Data/VehicleDefinition.h" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://D:/Unreal Engine/UE_5.5/Engine/Source/Runtime/Core/Public/Containers/Map.h" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Private/Data/UpgradeData.cpp" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Public/Core/DataTableManager.h" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Public/Data/DemandDefinition.h" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Public/Data/DepositDefinition.h" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Public/Data/FactoryDefinition.h" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Public/Data/HubDefinition.h" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Public/Data/ProductionData.h" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Public/Data/ResourceData.h" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Public/Data/RoadDefinition.h" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Public/Data/TransportData.h" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Public/Data/UpgradeData.h" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Source/FactoryNet/Public/Data/VehicleDefinition.h" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://D:/Unreal Engine/UE_5.5/Engine/Source/Runtime/Core/Public/Containers/Map.h" root0="SKIP_HIGHLIGHTING" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;customColor&quot;: &quot;&quot;,
@@ -163,7 +173,8 @@
       <option name="presentableId" value="Default" />
       <updated>1750457306662</updated>
       <workItem from="1750457309148" duration="3325000" />
-      <workItem from="1750462001968" duration="969000" />
+      <workItem from="1750462001968" duration="2042000" />
+      <workItem from="1750500901335" duration="428000" />
     </task>
     <servers />
   </component>

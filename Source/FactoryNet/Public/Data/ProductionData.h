@@ -64,6 +64,7 @@ struct FACTORYNET_API FProductionRecipe : public FTableRowBase
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Requirements")
     int32 FactoryLevel;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Requirements")
-    TArray<int32> RequiredUpgrades;
+    // ZMIENIONE: Teraz używamy referencji do upgradów zamiast ID
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Requirements", meta = (RowType = "UpgradeTableRow"))
+    TArray<FDataTableRowHandle> RequiredUpgrades;
 };

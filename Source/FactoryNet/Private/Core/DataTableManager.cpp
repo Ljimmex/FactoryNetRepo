@@ -8,6 +8,7 @@
 #include "Data/RoadDefinition.h"
 #include "Data/DepositDefinition.h"
 #include "Data/DemandDefinition.h"
+#include "Data/UpgradeData.h"
 #include "Engine/World.h"
 
 UDataTableManager::UDataTableManager()
@@ -15,6 +16,7 @@ UDataTableManager::UDataTableManager()
     ResourceDataTable = nullptr;
     ProductionDataTable = nullptr;
     TransportDataTable = nullptr;
+    UpgradeDataTable = nullptr;
 }
 
 void UDataTableManager::Initialize(FSubsystemCollectionBase& Collection)
@@ -31,6 +33,7 @@ void UDataTableManager::Deinitialize()
     ResourceDataTable = nullptr;
     ProductionDataTable = nullptr;
     TransportDataTable = nullptr;
+    UpgradeDataTable = nullptr;
     
     FactoryDefinitions.Empty();
     HubDefinitions.Empty();
@@ -51,7 +54,8 @@ void UDataTableManager::LoadAllDataTables()
     
     bDataTablesLoaded = (ResourceDataTable != nullptr && 
                         ProductionDataTable != nullptr && 
-                        TransportDataTable != nullptr);
+                        TransportDataTable != nullptr &&
+                        UpgradeDataTable != nullptr);
     
     if (bDataTablesLoaded)
     {
@@ -68,6 +72,7 @@ void UDataTableManager::LoadAllDataTables()
         UE_LOG(LogTemp, Warning, TEXT("ResourceDataTable: %s"), ResourceDataTable ? TEXT("OK") : TEXT("NULL"));
         UE_LOG(LogTemp, Warning, TEXT("ProductionDataTable: %s"), ProductionDataTable ? TEXT("OK") : TEXT("NULL"));
         UE_LOG(LogTemp, Warning, TEXT("TransportDataTable: %s"), TransportDataTable ? TEXT("OK") : TEXT("NULL"));
+        UE_LOG(LogTemp, Warning, TEXT("UpgradeDataTable: %s"), UpgradeDataTable ? TEXT("OK") : TEXT("NULL"));
     }
 }
 
@@ -297,6 +302,138 @@ TArray<FTransportRoute> UDataTableManager::GetRoutesToHub(UHubDefinition* HubDef
     return ToRoutes;
 }
 
+// === UPGRADE FUNCTIONS ===
+bool UDataTableManager::GetUpgradeDataByReference(const FDataTableRowHandle& UpgradeReference, FUpgradeTableRow& OutUpgradeData)
+{
+    FUpgradeTableRow* FoundRow = GetUpgradeDataInternal(UpgradeReference);
+    if (FoundRow)
+    {
+        OutUpgradeData = *FoundRow;
+        return true;
+    }
+    
+    return false;
+}
+
+TArray<FUpgradeTableRow> UDataTableManager::GetAllUpgrades()
+{
+    TArray<FUpgradeTableRow> AllUpgrades;
+    
+    if (UpgradeDataTable)
+    {
+        TArray<FUpgradeTableRow*> RowPointers;
+        UpgradeDataTable->GetAllRows<FUpgradeTableRow>(TEXT("GetAllUpgrades"), RowPointers);
+        
+        for (FUpgradeTableRow* Row : RowPointers)
+        {
+            if (Row)
+            {
+                AllUpgrades.Add(*Row);
+            }
+        }
+    }
+    
+    return AllUpgrades;
+}
+
+TArray<FUpgradeTableRow> UDataTableManager::GetUpgradesByCategory(EUpgradeCategory Category)
+{
+    TArray<FUpgradeTableRow> FilteredUpgrades;
+    TArray<FUpgradeTableRow> AllUpgrades = GetAllUpgrades();
+    
+    for (const FUpgradeTableRow& Upgrade : AllUpgrades)
+    {
+        if (Upgrade.UpgradeCategory == Category)
+        {
+            FilteredUpgrades.Add(Upgrade);
+        }
+    }
+    
+    return FilteredUpgrades;
+}
+
+TArray<FUpgradeTableRow> UDataTableManager::GetUpgradesByType(EUpgradeType Type)
+{
+    TArray<FUpgradeTableRow> FilteredUpgrades;
+    TArray<FUpgradeTableRow> AllUpgrades = GetAllUpgrades();
+    
+    for (const FUpgradeTableRow& Upgrade : AllUpgrades)
+    {
+        if (Upgrade.UpgradeType == Type)
+        {
+            FilteredUpgrades.Add(Upgrade);
+        }
+    }
+    
+    return FilteredUpgrades;
+}
+
+TArray<FUpgradeTableRow> UDataTableManager::GetUpgradesByTechLevel(int32 TechLevel)
+{
+    TArray<FUpgradeTableRow> FilteredUpgrades;
+    TArray<FUpgradeTableRow> AllUpgrades = GetAllUpgrades();
+    
+    for (const FUpgradeTableRow& Upgrade : AllUpgrades)
+    {
+        if (Upgrade.TechLevel == TechLevel)
+        {
+            FilteredUpgrades.Add(Upgrade);
+        }
+    }
+    
+    return FilteredUpgrades;
+}
+
+bool UDataTableManager::IsValidUpgradeReference(const FDataTableRowHandle& UpgradeReference)
+{
+    return GetUpgradeDataInternal(UpgradeReference) != nullptr;
+}
+
+FString UDataTableManager::GetUpgradeNameFromReference(const FDataTableRowHandle& UpgradeReference)
+{
+    FUpgradeTableRow* UpgradeData = GetUpgradeDataInternal(UpgradeReference);
+    if (UpgradeData)
+    {
+        return UpgradeData->UpgradeName.ToString();
+    }
+    
+    return TEXT("Unknown Upgrade");
+}
+
+bool UDataTableManager::AreUpgradePrerequisitesMet(const FDataTableRowHandle& UpgradeReference, const TArray<FDataTableRowHandle>& CompletedUpgrades)
+{
+    FUpgradeTableRow* UpgradeData = GetUpgradeDataInternal(UpgradeReference);
+    if (!UpgradeData)
+    {
+        return false;
+    }
+    
+    // Sprawdź wszystkie wymagane prerequisite
+    for (const FUpgradeRequirement& Prerequisite : UpgradeData->Prerequisites)
+    {
+        bool bPrerequisiteMet = false;
+        
+        // Sprawdź czy wymagany upgrade jest w liście ukończonych
+        for (const FDataTableRowHandle& CompletedUpgrade : CompletedUpgrades)
+        {
+            if (CompletedUpgrade.RowName == Prerequisite.RequiredUpgradeReference.RowName &&
+                CompletedUpgrade.DataTable == Prerequisite.RequiredUpgradeReference.DataTable)
+            {
+                bPrerequisiteMet = true;
+                break;
+            }
+        }
+        
+        // Jeśli prerequisite nie jest spełniony i nie jest opcjonalny, zwróć false
+        if (!bPrerequisiteMet && !Prerequisite.IsOptional)
+        {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
 // === DATAASSET FUNCTIONS ===
 UFactoryDefinition* UDataTableManager::GetFactoryDefinitionByName(const FString& FactoryName)
 {
@@ -439,6 +576,31 @@ FDataTableRowHandle UDataTableManager::FindRecipeReferenceByName(const FString& 
     return EmptyHandle;
 }
 
+FDataTableRowHandle UDataTableManager::FindUpgradeReferenceByName(const FString& UpgradeName)
+{
+    FDataTableRowHandle EmptyHandle;
+    
+    if (!UpgradeDataTable)
+    {
+        return EmptyHandle;
+    }
+    
+    TArray<FName> RowNames = UpgradeDataTable->GetRowNames();
+    for (const FName& RowName : RowNames)
+    {
+        FUpgradeTableRow* Row = UpgradeDataTable->FindRow<FUpgradeTableRow>(RowName, TEXT("FindUpgradeReferenceByName"));
+        if (Row && Row->UpgradeName.ToString() == UpgradeName)
+        {
+            FDataTableRowHandle Handle;
+            Handle.DataTable = UpgradeDataTable;
+            Handle.RowName = RowName;
+            return Handle;
+        }
+    }
+    
+    return EmptyHandle;
+}
+
 // === DEBUG FUNCTIONS ===
 void UDataTableManager::PrintAllResourceData()
 {
@@ -468,6 +630,22 @@ void UDataTableManager::PrintAllRecipeData()
     }
 }
 
+void UDataTableManager::PrintAllUpgradeData()
+{
+    TArray<FUpgradeTableRow> AllUpgrades = GetAllUpgrades();
+    
+    UE_LOG(LogTemp, Log, TEXT("=== ALL UPGRADE DATA (Reference System) ==="));
+    for (const FUpgradeTableRow& Upgrade : AllUpgrades)
+    {
+        UE_LOG(LogTemp, Log, TEXT("Name: %s, Category: %s, Type: %s, Cost: %.0f, Tech Level: %d"), 
+            *Upgrade.UpgradeName.ToString(),
+            *UEnum::GetValueAsString(Upgrade.UpgradeCategory),
+            *UEnum::GetValueAsString(Upgrade.UpgradeType),
+            Upgrade.ResearchCost,
+            Upgrade.TechLevel);
+    }
+}
+
 void UDataTableManager::ValidateDataIntegrity()
 {
     UE_LOG(LogTemp, Log, TEXT("DataTableManager: Validating data integrity (Reference System)..."));
@@ -480,6 +658,11 @@ void UDataTableManager::ValidateDataIntegrity()
     }
     
     if (!ValidateProductionRecipes())
+    {
+        bValid = false;
+    }
+    
+    if (!ValidateUpgradeReferences())
     {
         bValid = false;
     }
@@ -513,6 +696,16 @@ FProductionRecipe* UDataTableManager::GetProductionRecipeInternal(const FDataTab
     }
     
     return RecipeReference.GetRow<FProductionRecipe>(TEXT("GetProductionRecipeInternal"));
+}
+
+FUpgradeTableRow* UDataTableManager::GetUpgradeDataInternal(const FDataTableRowHandle& UpgradeReference)
+{
+    if (!UpgradeReference.DataTable || UpgradeReference.RowName.IsNone())
+    {
+        return nullptr;
+    }
+    
+    return UpgradeReference.GetRow<FUpgradeTableRow>(TEXT("GetUpgradeDataInternal"));
 }
 
 bool UDataTableManager::IsDataTableRowHandleValid(const FDataTableRowHandle& Handle) const
@@ -581,12 +774,52 @@ bool UDataTableManager::ValidateProductionRecipes()
     return bValid;
 }
 
+bool UDataTableManager::ValidateUpgradeReferences()
+{
+    bool bValid = true;
+    TArray<FProductionRecipe> AllRecipes = GetAllRecipes();
+    
+    UE_LOG(LogTemp, Log, TEXT("DataTableManager: Validating upgrade references..."));
+    
+    for (const FProductionRecipe& Recipe : AllRecipes)
+    {
+        // Check upgrade references in recipes
+        for (const FDataTableRowHandle& UpgradeRef : Recipe.RequiredUpgrades)
+        {
+            if (!IsValidUpgradeReference(UpgradeRef))
+            {
+                UE_LOG(LogTemp, Error, TEXT("Recipe '%s' has invalid upgrade reference"), 
+                    *Recipe.RecipeName.ToString());
+                bValid = false;
+            }
+        }
+    }
+    
+    // Validate upgrade prerequisites
+    TArray<FUpgradeTableRow> AllUpgrades = GetAllUpgrades();
+    for (const FUpgradeTableRow& Upgrade : AllUpgrades)
+    {
+        for (const FUpgradeRequirement& Prerequisite : Upgrade.Prerequisites)
+        {
+            if (!IsValidUpgradeReference(Prerequisite.RequiredUpgradeReference))
+            {
+                UE_LOG(LogTemp, Error, TEXT("Upgrade '%s' has invalid prerequisite reference"), 
+                    *Upgrade.UpgradeName.ToString());
+                bValid = false;
+            }
+        }
+    }
+    
+    return bValid;
+}
+
 void UDataTableManager::LogDataTableStats()
 {
     UE_LOG(LogTemp, Log, TEXT("=== DATA TABLE STATISTICS (Reference System) ==="));
     UE_LOG(LogTemp, Log, TEXT("Resources: %d"), GetAllResources().Num());
     UE_LOG(LogTemp, Log, TEXT("Recipes: %d"), GetAllRecipes().Num());
     UE_LOG(LogTemp, Log, TEXT("Transport Routes: %d"), GetAllRoutes().Num());
+    UE_LOG(LogTemp, Log, TEXT("Upgrades: %d"), GetAllUpgrades().Num());
     UE_LOG(LogTemp, Log, TEXT("Factory Definitions: %d"), FactoryDefinitions.Num());
     UE_LOG(LogTemp, Log, TEXT("Hub Definitions: %d"), HubDefinitions.Num());
     UE_LOG(LogTemp, Log, TEXT("Vehicle Definitions: %d"), VehicleDefinitions.Num());
