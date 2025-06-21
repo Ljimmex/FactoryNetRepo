@@ -42,24 +42,24 @@ ABlueprintDepositManager::ABlueprintDepositManager()
     DelayTime = 2.0f;
     DepositDensity = EDepositDensity::Normal;
     bUseDefaultSpawnRules = true;
-    bAutoConnectToNearestHub = false; // ZMIENIONE: wyłączone domyślnie (brak TransportHub)
-    HubSearchRadius = 5000.0f;
-    bAutoCreateHubsIfNeeded = false;
-    MaxSpawnAttempts = 1000;
-    GridResolution = 50;
+    bLogSpawnProcess = true;
+    bShowSpawnArea = true;
     bUseCustomBounds = false;
+    DebugDisplayTime = 10.0f;
+
+    // Initialize custom bounds
     CustomSpawnCenter = FVector::ZeroVector;
     CustomSpawnSize = FVector(10000.0f, 10000.0f, 5000.0f);
-    bShowSpawnArea = true;
-    bShowDebugInfo = false;
-    bLogSpawnProcess = true;
-    bDrawDebugSpheres = false;
-    DebugDisplayTime = 60.0f;
 }
 
 void ABlueprintDepositManager::BeginPlay()
 {
     Super::BeginPlay();
+
+    if (bLogSpawnProcess)
+    {
+        UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: BeginPlay started"));
+    }
 
     // Initialize spawn manager
     InitializeSpawnManager();
@@ -67,17 +67,22 @@ void ABlueprintDepositManager::BeginPlay()
     // Validate configuration
     if (!ValidateSpawnConfiguration())
     {
-        UE_LOG(LogTemp, Error, TEXT("BlueprintDepositManager: Invalid configuration detected"));
+        UE_LOG(LogTemp, Error, TEXT("BlueprintDepositManager: Configuration validation failed"));
         return;
     }
 
-    // Log configuration summary
+    // Set spawn area from bounds
+    SetSpawnAreaFromBounds();
+
+    // Setup spawn rules
+    SetupSpawnRules();
+
     if (bLogSpawnProcess)
     {
         LogConfigurationSummary();
     }
 
-    // Handle different spawn triggers
+    // Handle spawn trigger
     switch (SpawnTrigger)
     {
         case ESpawnTriggerType::OnBeginPlay:
@@ -87,17 +92,12 @@ void ABlueprintDepositManager::BeginPlay()
         case ESpawnTriggerType::Delayed:
             if (DelayTime > 0.0f)
             {
-                GetWorldTimerManager().SetTimer(
-                    DelayedSpawnTimerHandle, 
-                    this, 
-                    &ABlueprintDepositManager::DelayedGeneration, 
-                    DelayTime, 
-                    false
-                );
+                GetWorldTimerManager().SetTimer(DelayedSpawnTimerHandle, this, 
+                    &ABlueprintDepositManager::GenerateDeposits, DelayTime, false);
 
                 if (bLogSpawnProcess)
                 {
-                    UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Scheduled delayed generation in %.1f seconds"), DelayTime);
+                    UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Delayed spawn scheduled for %.2f seconds"), DelayTime);
                 }
             }
             else
@@ -169,125 +169,310 @@ void ABlueprintDepositManager::GenerateDeposits()
         UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Starting deposit generation..."));
     }
 
-    // Setup spawn area and rules
-    SetupSpawnArea();
-    SetupSpawnRules();
-
-    // Apply density multiplier to spawn manager
-    SpawnManager->DepositDensity = DepositDensity;
-    SpawnManager->MaxSpawnAttempts = MaxSpawnAttempts;
-    SpawnManager->GridResolution = GridResolution;
+    // Apply deposit density to spawn manager
+    SpawnManager->SetDepositDensity(DepositDensity);
 
     // Generate deposits
     SpawnManager->GenerateDepositsOnMap();
     bHasGenerated = true;
 
-    // Auto-connect to hubs if enabled (skip for now - no TransportHub)
-    if (bAutoConnectToNearestHub)
+    // Notify Blueprint
+    OnDepositGenerationStarted_BP();
+
+    if (bLogSpawnProcess)
     {
-        if (bLogSpawnProcess)
-        {
-            UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Hub connection skipped - TransportHub not implemented yet"));
-        }
-        // ConnectDepositsToHubs(); // ZAKOMENTOWANE - zostanie odblokowane gdy TransportHub będzie gotowy
+        UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Deposit generation completed"));
+    }
+}
+
+void ABlueprintDepositManager::RegenerateDeposits()
+{
+    if (!SpawnManager)
+    {
+        UE_LOG(LogTemp, Error, TEXT("BlueprintDepositManager: SpawnManager not initialized"));
+        return;
     }
 
-    // Draw debug spheres if enabled
-    if (bDrawDebugSpheres)
+    if (bLogSpawnProcess)
     {
-        DrawDebugDeposits();
+        UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Regenerating deposits..."));
     }
+
+    // Clear existing deposits
+    SpawnManager->ClearAllSpawnedDeposits();
+
+    // Reset flag and regenerate
+    bHasGenerated = false;
+    GenerateDeposits();
+
+    // Notify Blueprint
+    OnDepositsRegenerated_BP();
 }
 
 void ABlueprintDepositManager::ClearAllDeposits()
 {
     if (!SpawnManager)
     {
-        UE_LOG(LogTemp, Warning, TEXT("BlueprintDepositManager: SpawnManager not available"));
+        UE_LOG(LogTemp, Error, TEXT("BlueprintDepositManager: SpawnManager not initialized"));
         return;
     }
 
     if (bLogSpawnProcess)
     {
-        UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Clearing %d deposits"), SpawnedDeposits.Num());
+        UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Clearing all deposits..."));
     }
 
     SpawnManager->ClearAllSpawnedDeposits();
-    SpawnedDeposits.Empty();
     bHasGenerated = false;
 
-    if (bLogSpawnProcess)
-    {
-        UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: All deposits cleared"));
-    }
+    // Notify Blueprint
+    OnDepositsCleared_BP();
 }
 
-void ABlueprintDepositManager::RegenerateDeposits()
-{
-    if (bLogSpawnProcess)
-    {
-        UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Regenerating deposits..."));
-    }
+// ================================
+// ✅ NAPRAWIONE: Funkcja GetDepositInfo - usunięto odwołania do nieistniejących funkcji
+// Błędy które naprawiono:
+// 1. "Cannot resolve symbol 'IsActive'" - zastąpiono sprawdzaniem IsValid()
+// 2. "Cannot resolve symbol 'GetCurrentReserves'" - zastąpiono GetAvailableResource()
+// 3. "Cannot resolve symbol 'GetDepositDefinition'" - użyto bezpośredniej referencji z DepositSpawnManager
+// 4. "Cannot resolve symbol 'DepositColor'" - usunięto, nie istnieje w DepositDefinition
+// ================================
 
-    ClearAllDeposits();
-    GenerateDeposits();
-}
-
-AResourceDeposit* ABlueprintDepositManager::SpawnDepositAt(UDepositDefinition* DepositType, FVector Location)
+FDepositInfo ABlueprintDepositManager::GetDepositInfo(UDepositDefinition* DepositType)
 {
-    if (!SpawnManager)
-    {
-        UE_LOG(LogTemp, Error, TEXT("BlueprintDepositManager: SpawnManager not available"));
-        return nullptr;
-    }
+    FDepositInfo DepositInfo;
 
     if (!DepositType)
     {
-        UE_LOG(LogTemp, Error, TEXT("BlueprintDepositManager: DepositType is null"));
+        UE_LOG(LogTemp, Warning, TEXT("BlueprintDepositManager: DepositType is null"));
+        return DepositInfo;
+    }
+
+    if (!SpawnManager)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("BlueprintDepositManager: SpawnManager is null"));
+        return DepositInfo;
+    }
+
+    // ✅ NAPRAWIONE: Używamy publicznej funkcji GetDepositsByType zamiast bezpośredniego dostępu do prywatnych członków
+    TArray<AResourceDeposit*> DepositsOfType = SpawnManager->GetDepositsByType(DepositType);
+
+    DepositInfo.DepositType = DepositType;
+    DepositInfo.TotalCount = DepositsOfType.Num();
+
+    // Calculate total resources and active count
+    int32 ActiveCount = 0;
+    int32 TotalResources = 0;
+
+    for (AResourceDeposit* Deposit : DepositsOfType)
+    {
+        if (IsValid(Deposit))
+        {
+            // ✅ NAPRAWIONE: Zamiast IsActive() używamy IsValid() i sprawdzamy czy nie jest depleted
+            if (!Deposit->IsDepleted())
+            {
+                ActiveCount++;
+            }
+            
+            // ✅ NAPRAWIONE: Zamiast GetCurrentReserves() używamy GetAvailableResource()
+            TotalResources += Deposit->GetAvailableResource();
+        }
+    }
+
+    DepositInfo.ActiveCount = ActiveCount;
+    DepositInfo.TotalResources = TotalResources;
+
+    return DepositInfo;
+}
+
+TArray<AResourceDeposit*> ABlueprintDepositManager::GetAllSpawnedDeposits()
+{
+    if (!SpawnManager)
+    {
+        return TArray<AResourceDeposit*>();
+    }
+
+    return SpawnManager->GetAllSpawnedDeposits();
+}
+
+TArray<AResourceDeposit*> ABlueprintDepositManager::GetDepositsByType(UDepositDefinition* DepositType)
+{
+    if (!SpawnManager)
+    {
+        return TArray<AResourceDeposit*>();
+    }
+
+    return SpawnManager->GetDepositsByType(DepositType);
+}
+
+AResourceDeposit* ABlueprintDepositManager::GetNearestDeposit(const FVector& Location, UDepositDefinition* DepositType)
+{
+    if (!SpawnManager)
+    {
         return nullptr;
     }
 
-    AResourceDeposit* SpawnedDeposit = SpawnManager->SpawnDepositAtLocation(DepositType, Location);
-    
-    if (SpawnedDeposit)
+    return SpawnManager->GetNearestDepositOfType(Location, DepositType);
+}
+
+// === PRIVATE FUNCTIONS ===
+
+void ABlueprintDepositManager::InitializeSpawnManager()
+{
+    if (GetWorld())
     {
-        SpawnedDeposits.Add(SpawnedDeposit);
+        SpawnManager = GetWorld()->GetSubsystem<UDepositSpawnManager>();
         
-        // Auto-connect to nearest hub if enabled (skip for now - no TransportHub)
-        if (bAutoConnectToNearestHub)
+        if (SpawnManager)
         {
+            // Bind to events
+            SpawnManager->OnDepositSpawned.AddDynamic(this, &ABlueprintDepositManager::OnDepositSpawned);
+            SpawnManager->OnAllDepositsSpawned.AddDynamic(this, &ABlueprintDepositManager::OnAllDepositsSpawned);
+            
             if (bLogSpawnProcess)
             {
-                UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Hub connection skipped for manually spawned deposit - TransportHub not implemented yet"));
+                UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Successfully initialized SpawnManager"));
             }
-            
-            // TODO: Uncomment when TransportHub is implemented
-            /*
-            ATransportHub* NearestHub = FindNearestHub(Location);
-            if (NearestHub)
-            {
-                float Distance = FVector::Dist(Location, NearestHub->GetActorLocation());
-                if (Distance <= HubSearchRadius)
-                {
-                    SpawnedDeposit->ConnectToHub(NearestHub);
-                    
-                    if (bLogSpawnProcess)
-                    {
-                        UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Auto-connected spawned deposit to hub at distance %.0f"), Distance);
-                    }
-                }
-            }
-            else if (bAutoCreateHubsIfNeeded)
-            {
-                SpawnHubForDeposit(SpawnedDeposit);
-            }
-            */
         }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("BlueprintDepositManager: Failed to get DepositSpawnManager subsystem"));
+        }
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("BlueprintDepositManager: World is null during initialization"));
+    }
+}
 
+void ABlueprintDepositManager::SetupSpawnRules()
+{
+    if (!SpawnManager)
+    {
+        return;
+    }
+
+    // Clear existing rules if not using defaults
+    if (!bUseDefaultSpawnRules)
+    {
+        SpawnManager->ClearSpawnRules();
+    }
+
+    // Add custom rules
+    int32 AddedRules = 0;
+    for (const FBlueprintSpawnRule& BPRule : CustomSpawnRules)
+    {
+        if (BPRule.DepositType)
+        {
+            FDepositSpawnRule SpawnRule = ConvertBlueprintRule(BPRule);
+            SpawnManager->AddSpawnRule(SpawnRule);
+            AddedRules++;
+        }
+    }
+
+    if (bLogSpawnProcess)
+    {
+        UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Setup %d custom spawn rules (UseDefaults: %s)"), 
+               AddedRules, bUseDefaultSpawnRules ? TEXT("true") : TEXT("false"));
+    }
+}
+
+FDepositSpawnRule ABlueprintDepositManager::ConvertBlueprintRule(const FBlueprintSpawnRule& BPRule)
+{
+    FDepositSpawnRule SpawnRule;
+    
+    SpawnRule.DepositDefinition = BPRule.DepositType;
+    SpawnRule.SpawnProbability = BPRule.SpawnProbability;
+    SpawnRule.MaxDepositCount = BPRule.MaxCount;
+    SpawnRule.MinDistanceFromOthers = BPRule.MinDistance;
+    SpawnRule.PreferredTerrainTypes = BPRule.TerrainTypes;
+    SpawnRule.MinElevation = BPRule.MinElevation;
+    SpawnRule.MaxElevation = BPRule.MaxElevation;
+    SpawnRule.PreferCoastline = BPRule.bPreferCoastline;
+    
+    return SpawnRule;
+}
+
+void ABlueprintDepositManager::OnDepositSpawned(AResourceDeposit* SpawnedDeposit, FVector SpawnLocation)
+{
+    if (SpawnedDeposit && bLogSpawnProcess)
+    {
+        UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Deposit spawned at %s"), *SpawnLocation.ToString());
+    }
+
+    // Notify Blueprint
+    OnDepositSpawned_BP(SpawnedDeposit, SpawnLocation);
+}
+
+void ABlueprintDepositManager::OnAllDepositsSpawned(const TArray<FSpawnedDepositInfo>& SpawnedDeposits)
+{
+    if (bLogSpawnProcess)
+    {
+        UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: All deposits spawned. Total: %d"), SpawnedDeposits.Num());
+    }
+
+    // Notify Blueprint
+    OnAllDepositsSpawned_BP(SpawnedDeposits);
+}
+
+void ABlueprintDepositManager::UpdateSpawnAreaVisualization()
+{
+    if (!GetWorld() || !bShowSpawnArea)
+    {
+        return;
+    }
+
+    FVector Center;
+    FVector Size;
+
+    if (bUseCustomBounds)
+    {
+        Center = CustomSpawnCenter;
+        Size = CustomSpawnSize;
+    }
+    else if (SpawnAreaBounds)
+    {
+        Center = GetActorLocation() + SpawnAreaBounds->GetRelativeLocation();
+        Size = SpawnAreaBounds->GetScaledBoxExtent() * 2.0f;
+    }
+    else
+    {
+        return;
+    }
+
+    // Draw debug box
+    DrawDebugBox(GetWorld(), Center, Size * 0.5f, FColor::Yellow, false, DebugDisplayTime, 0, 10.0f);
+    
+    // Draw center point
+    DrawDebugSphere(GetWorld(), Center, 100.0f, 8, FColor::Red, false, DebugDisplayTime, 0, 5.0f);
+    
+    // Draw spawn area info
+    DrawDebugString(GetWorld(), Center + FVector(0, 0, Size.Z * 0.6f), 
+                   FString::Printf(TEXT("Spawn Area: %.0fx%.0f"), Size.X, Size.Y), 
+                   nullptr, FColor::White, DebugDisplayTime);
+}
+
+AResourceDeposit* ABlueprintDepositManager::SpawnDepositAtLocation(UDepositDefinition* DepositType, const FVector& Location)
+{
+    if (!SpawnManager || !DepositType)
+    {
+        return nullptr;
+    }
+
+    AResourceDeposit* SpawnedDeposit = SpawnManager->SpawnDepositAtLocation(DepositType, Location, FRotator::ZeroRotator);
+    
+    if (SpawnedDeposit && bLogSpawnProcess)
+    {
+        FString DepositName = DepositType->DepositName.ToString();
+        if (DepositName.IsEmpty())
+        {
+            DepositName = TEXT("Unknown");
+        }
+        
         if (bLogSpawnProcess)
         {
             UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Manually spawned %s at %s"), 
-                   *DepositType->DepositName.ToString(), *Location.ToString());
+                   *DepositName, *Location.ToString());
         }
     }
     else
@@ -356,284 +541,71 @@ void ABlueprintDepositManager::PreviewSpawnArea()
             Center = CustomSpawnCenter;
             Size = CustomSpawnSize;
         }
-        else
+        else if (SpawnAreaBounds)
         {
             Center = GetActorLocation() + SpawnAreaBounds->GetRelativeLocation();
             Size = SpawnAreaBounds->GetScaledBoxExtent() * 2.0f;
         }
-
-        // Draw preview box
-        DrawDebugBox(GetWorld(), Center, Size * 0.5f, FColor::Yellow, false, DebugDisplayTime, 0, 10.0f);
-        
-        // Draw center point
-        DrawDebugSphere(GetWorld(), Center, 100.0f, 8, FColor::Orange, false, DebugDisplayTime, 0, 5.0f);
-        
-        // Draw corner markers
-        FVector HalfSize = Size * 0.5f;
-        TArray<FVector> Corners = {
-            Center + FVector(-HalfSize.X, -HalfSize.Y, 0),
-            Center + FVector(HalfSize.X, -HalfSize.Y, 0),
-            Center + FVector(HalfSize.X, HalfSize.Y, 0),
-            Center + FVector(-HalfSize.X, HalfSize.Y, 0)
-        };
-
-        for (const FVector& Corner : Corners)
-        {
-            DrawDebugSphere(GetWorld(), Corner, 50.0f, 6, FColor::Red, false, DebugDisplayTime, 0, 3.0f);
-        }
-
-        // Draw info text
-        DrawDebugString(GetWorld(), Center + FVector(0, 0, Size.Z * 0.6f), 
-                       FString::Printf(TEXT("Deposit Spawn Area Preview\nSize: %.0fx%.0fx%.0f"), Size.X, Size.Y, Size.Z),
-                       nullptr, FColor::Yellow, DebugDisplayTime);
-
-        if (bLogSpawnProcess)
-        {
-            UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Previewing spawn area for %.1f seconds"), DebugDisplayTime);
-        }
-    }
-}
-
-int32 ABlueprintDepositManager::GetTotalSpawnedDeposits() const
-{
-    return SpawnedDeposits.Num();
-}
-
-TArray<AResourceDeposit*> ABlueprintDepositManager::GetSpawnedDepositsByType(UDepositDefinition* DepositType) const
-{
-    if (!SpawnManager || !DepositType)
-    {
-        return TArray<AResourceDeposit*>();
-    }
-
-    return SpawnManager->GetDepositsByType(DepositType);
-}
-
-AResourceDeposit* ABlueprintDepositManager::FindNearestDeposit(FVector Location, UDepositDefinition* DepositType) const
-{
-    if (!SpawnManager)
-    {
-        return nullptr;
-    }
-
-    return SpawnManager->GetNearestDepositOfType(Location, DepositType);
-}
-
-// === PRIVATE FUNCTIONS ===
-
-void ABlueprintDepositManager::InitializeSpawnManager()
-{
-    if (GetWorld())
-    {
-        SpawnManager = GetWorld()->GetSubsystem<UDepositSpawnManager>();
-        
-        if (SpawnManager)
-        {
-            // Bind to events
-            SpawnManager->OnDepositSpawned.AddDynamic(this, &ABlueprintDepositManager::OnDepositSpawned);
-            SpawnManager->OnAllDepositsSpawned.AddDynamic(this, &ABlueprintDepositManager::OnAllDepositsSpawned);
-            
-            if (bLogSpawnProcess)
-            {
-                UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Successfully initialized SpawnManager"));
-            }
-        }
         else
         {
-            UE_LOG(LogTemp, Error, TEXT("BlueprintDepositManager: Failed to get DepositSpawnManager subsystem"));
+            return;
         }
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("BlueprintDepositManager: World is null during initialization"));
+
+        // Extended visualization for preview
+        float PreviewTime = 30.0f;
+        
+        // Draw main area
+        DrawDebugBox(GetWorld(), Center, Size * 0.5f, FColor::Cyan, false, PreviewTime, 0, 15.0f);
+        
+        // Draw grid
+        int32 GridLines = 5;
+        for (int32 i = 0; i <= GridLines; i++)
+        {
+            float Alpha = (float)i / GridLines;
+            
+            // X lines
+            FVector StartX = Center + FVector(-Size.X * 0.5f, -Size.Y * 0.5f + Size.Y * Alpha, 0);
+            FVector EndX = Center + FVector(Size.X * 0.5f, -Size.Y * 0.5f + Size.Y * Alpha, 0);
+            DrawDebugLine(GetWorld(), StartX, EndX, FColor::Green, false, PreviewTime, 0, 2.0f);
+            
+            // Y lines
+            FVector StartY = Center + FVector(-Size.X * 0.5f + Size.X * Alpha, -Size.Y * 0.5f, 0);
+            FVector EndY = Center + FVector(-Size.X * 0.5f + Size.X * Alpha, Size.Y * 0.5f, 0);
+            DrawDebugLine(GetWorld(), StartY, EndY, FColor::Green, false, PreviewTime, 0, 2.0f);
+        }
     }
 }
 
-void ABlueprintDepositManager::SetupSpawnRules()
+// ================================
+// ✅ NAPRAWIONE: Funkcja DebugSpawnedDeposits - usunięto odwołania do nieistniejących funkcji
+// Błędy które naprawiono:
+// 1. "Cannot resolve symbol 'GetDepositDefinition'" - już nie używamy tej funkcji
+// 2. "Cannot resolve symbol 'DepositColor'" - zastąpiono prostym kolorowaniem na podstawie nazwy
+// ================================
+
+void ABlueprintDepositManager::DebugSpawnedDeposits()
 {
     if (!SpawnManager)
     {
+        UE_LOG(LogTemp, Warning, TEXT("BlueprintDepositManager: SpawnManager is null"));
         return;
     }
 
-    // Clear existing rules if not using defaults
-    if (!bUseDefaultSpawnRules)
-    {
-        SpawnManager->ClearSpawnRules();
-    }
-
-    // Add custom rules
-    int32 AddedRules = 0;
-    for (const FBlueprintSpawnRule& BPRule : CustomSpawnRules)
-    {
-        if (BPRule.DepositType)
-        {
-            FDepositSpawnRule SpawnRule = ConvertBlueprintRule(BPRule);
-            SpawnManager->AddSpawnRule(SpawnRule);
-            AddedRules++;
-        }
-    }
-
-    if (bLogSpawnProcess)
-    {
-        UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Setup %d custom spawn rules (UseDefaults: %s)"), 
-               AddedRules, bUseDefaultSpawnRules ? TEXT("Yes") : TEXT("No"));
-    }
-}
-
-void ABlueprintDepositManager::SetupSpawnArea()
-{
-    if (!SpawnManager)
-    {
-        return;
-    }
-
-    FVector Center;
-    FVector Size;
-
-    if (bUseCustomBounds)
-    {
-        Center = CustomSpawnCenter;
-        Size = CustomSpawnSize;
-    }
-    else
-    {
-        Center = GetActorLocation() + SpawnAreaBounds->GetRelativeLocation();
-        Size = SpawnAreaBounds->GetScaledBoxExtent() * 2.0f;
-    }
-
-    SpawnManager->SetSpawnArea(Center, Size);
-
-    if (bLogSpawnProcess)
-    {
-        UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Setup spawn area - Center: %s, Size: %s"), 
-               *Center.ToString(), *Size.ToString());
-    }
-}
-
-void ABlueprintDepositManager::OnDepositSpawned(AResourceDeposit* Deposit, FVector Location)
-{
-    if (Deposit)
-    {
-        SpawnedDeposits.AddUnique(Deposit);
-        
-        // Call Blueprint event
-        OnDepositSpawned_BP(Deposit, Location);
-        
-        if (bLogSpawnProcess)
-        {
-            UE_LOG(LogTemp, VeryVerbose, TEXT("BlueprintDepositManager: Deposit spawned - %s at %s"), 
-                   *Deposit->GetDepositName().ToString(), *Location.ToString());
-        }
-    }
-}
-
-void ABlueprintDepositManager::OnAllDepositsSpawned(const TArray<FSpawnedDepositInfo>& SpawnedInfo)
-{
-    int32 TotalSpawned = SpawnedInfo.Num();
+    TArray<AResourceDeposit*> AllDeposits = SpawnManager->GetAllSpawnedDeposits();
     
-    // Call Blueprint event
-    OnAllDepositsGenerated_BP(TotalSpawned);
-    
-    // Process spawn rules for Blueprint events
-    TMap<UDepositDefinition*, int32> DepositCounts;
-    for (const FSpawnedDepositInfo& Info : SpawnedInfo)
-    {
-        if (Info.DepositDefinition)
-        {
-            DepositCounts.FindOrAdd(Info.DepositDefinition)++;
-        }
-    }
+    UE_LOG(LogTemp, Log, TEXT("=== Spawned Deposits Debug ==="));
+    UE_LOG(LogTemp, Log, TEXT("Total Deposits: %d"), AllDeposits.Num());
 
-    // Trigger Blueprint events for each deposit type
-    for (const auto& Pair : DepositCounts)
+    for (int32 i = 0; i < AllDeposits.Num(); i++)
     {
-        int32 MaxCount = 0;
-        for (const FBlueprintSpawnRule& Rule : CustomSpawnRules)
-        {
-            if (Rule.DepositType == Pair.Key)
-            {
-                MaxCount = Rule.MaxCount;
-                break;
-            }
-        }
-        
-        OnSpawnRuleProcessed_BP(Pair.Key, Pair.Value, MaxCount);
-    }
-    
-    if (bLogSpawnProcess)
-    {
-        UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: All deposits generated - Total: %d"), TotalSpawned);
-        
-        // Log breakdown by type
-        for (const auto& Pair : DepositCounts)
-        {
-            UE_LOG(LogTemp, Log, TEXT("  %s: %d deposits"), 
-                   *Pair.Key->DepositName.ToString(), Pair.Value);
-        }
-    }
-}
-
-void ABlueprintDepositManager::DelayedGeneration()
-{
-    if (bLogSpawnProcess)
-    {
-        UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Executing delayed generation"));
-    }
-    
-    GenerateDeposits();
-}
-
-FDepositSpawnRule ABlueprintDepositManager::ConvertBlueprintRule(const FBlueprintSpawnRule& BPRule) const
-{
-    FDepositSpawnRule SpawnRule;
-    SpawnRule.DepositDefinition = BPRule.DepositType;
-    SpawnRule.SpawnProbability = BPRule.SpawnProbability;
-    SpawnRule.MaxDepositCount = BPRule.MaxCount;
-    SpawnRule.MinDistanceFromOthers = BPRule.MinDistance;
-    SpawnRule.PreferredTerrainTypes = BPRule.TerrainTypes;
-    SpawnRule.MinElevation = BPRule.MinElevation;
-    SpawnRule.MaxElevation = BPRule.MaxElevation;
-    SpawnRule.PreferCoastline = BPRule.bPreferCoastline;
-    
-    return SpawnRule;
-}
-
-void ABlueprintDepositManager::UpdateSpawnAreaVisualization()
-{
-    if (!SpawnAreaBounds)
-    {
-        return;
-    }
-
-    // Update visibility based on settings
-    SpawnAreaBounds->SetVisibility(bShowSpawnArea);
-    SpawnAreaBounds->SetHiddenInGame(!bShowSpawnArea);
-    
-    // Update box color based on state
-    if (bShowSpawnArea)
-    {
-        FColor BoxColor = bHasGenerated ? FColor::Green : FColor::Yellow;
-        SpawnAreaBounds->ShapeColor = BoxColor;
-    }
-}
-
-void ABlueprintDepositManager::DrawDebugDeposits() const
-{
-    if (!GetWorld() || !bDrawDebugSpheres)
-    {
-        return;
-    }
-
-    for (AResourceDeposit* Deposit : SpawnedDeposits)
-    {
+        AResourceDeposit* Deposit = AllDeposits[i];
         if (IsValid(Deposit))
         {
             FVector Location = Deposit->GetActorLocation();
-            FColor DepositColor = FColor::Blue;
-            
-            // Color by deposit type (simple hashing for consistent colors)
             FString DepositName = Deposit->GetDepositName().ToString();
+            
+            // ✅ NAPRAWIONE: Proste kolorowanie na podstawie nazwy zamiast nieistniejącego DepositColor
+            FColor DepositColor = FColor::White;
             if (DepositName.Contains("Iron"))
             {
                 DepositColor = FColor::Red;
@@ -642,29 +614,34 @@ void ABlueprintDepositManager::DrawDebugDeposits() const
             {
                 DepositColor = FColor::Black;
             }
-            else if (DepositName.Contains("Wheat"))
-            {
-                DepositColor = FColor::Yellow;
-            }
             else if (DepositName.Contains("Coal"))
             {
-                DepositColor = FColor::White;
+                DepositColor = FColor::Silver;
+            }
+            else if (DepositName.Contains("Gold"))
+            {
+                DepositColor = FColor::Yellow;
             }
             else if (DepositName.Contains("Stone"))
             {
                 DepositColor = FColor::Cyan;
             }
-            else if (DepositName.Contains("Wood"))
+            else
             {
                 DepositColor = FColor::Green;
             }
             
-            // Draw sphere at deposit location
-            DrawDebugSphere(GetWorld(), Location, 150.0f, 8, DepositColor, false, DebugDisplayTime, 0, 5.0f);
+            UE_LOG(LogTemp, Log, TEXT("  [%d] %s at %s"), i, *DepositName, *Location.ToString());
             
-            // Draw deposit name
-            DrawDebugString(GetWorld(), Location + FVector(0, 0, 200), 
-                          DepositName, nullptr, DepositColor, DebugDisplayTime);
+            // Draw debug visualization
+            if (GetWorld())
+            {
+                DrawDebugSphere(GetWorld(), Location, 150.0f, 8, DepositColor, false, DebugDisplayTime, 0, 5.0f);
+                
+                // Draw deposit name
+                DrawDebugString(GetWorld(), Location + FVector(0, 0, 200), 
+                              DepositName, nullptr, DepositColor, DebugDisplayTime);
+            }
         }
     }
 }
@@ -740,26 +717,13 @@ void ABlueprintDepositManager::LogConfigurationSummary() const
     UE_LOG(LogTemp, Log, TEXT("Deposit Density: %s"), 
            *UEnum::GetValueAsString(DepositDensity));
     UE_LOG(LogTemp, Log, TEXT("Use Default Rules: %s"), 
-           bUseDefaultSpawnRules ? TEXT("Yes") : TEXT("No"));
+           bUseDefaultSpawnRules ? TEXT("true") : TEXT("false"));
     UE_LOG(LogTemp, Log, TEXT("Custom Rules Count: %d"), CustomSpawnRules.Num());
-    UE_LOG(LogTemp, Log, TEXT("Auto Connect to Hubs: %s (disabled - TransportHub not implemented)"), 
-           bAutoConnectToNearestHub ? TEXT("Yes") : TEXT("No"));
-    UE_LOG(LogTemp, Log, TEXT("Hub Search Radius: %.0f"), HubSearchRadius);
-    UE_LOG(LogTemp, Log, TEXT("Max Spawn Attempts: %d"), MaxSpawnAttempts);
-    UE_LOG(LogTemp, Log, TEXT("Grid Resolution: %d"), GridResolution);
+    UE_LOG(LogTemp, Log, TEXT("Delay Time: %.2f seconds"), DelayTime);
     
-    if (bUseCustomBounds)
+    if (SpawnAreaBounds)
     {
-        UE_LOG(LogTemp, Log, TEXT("Custom Spawn Area: Center=%s, Size=%s"), 
-               *CustomSpawnCenter.ToString(), *CustomSpawnSize.ToString());
+        FVector BoxExtent = SpawnAreaBounds->GetScaledBoxExtent();
+        UE_LOG(LogTemp, Log, TEXT("Spawn Area Size: %s"), *BoxExtent.ToString());
     }
-    else if (SpawnAreaBounds)
-    {
-        FVector Center = GetActorLocation() + SpawnAreaBounds->GetRelativeLocation();
-        FVector Size = SpawnAreaBounds->GetScaledBoxExtent() * 2.0f;
-        UE_LOG(LogTemp, Log, TEXT("Bounds Spawn Area: Center=%s, Size=%s"), 
-               *Center.ToString(), *Size.ToString());
-    }
-    
-    UE_LOG(LogTemp, Log, TEXT("============================================"));
 }

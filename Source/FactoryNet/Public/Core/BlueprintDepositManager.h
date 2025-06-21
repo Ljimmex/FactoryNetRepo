@@ -68,6 +68,37 @@ struct FACTORYNET_API FBlueprintSpawnRule
     bool bPreferCoastline;
 };
 
+// ✅ DODANO BRAKUJĄCĄ STRUKTURĘ FDepositInfo
+USTRUCT(BlueprintType)
+struct FACTORYNET_API FDepositInfo
+{
+    GENERATED_BODY()
+
+    FDepositInfo()
+    {
+        DepositType = nullptr;
+        TotalCount = 0;
+        ActiveCount = 0;
+        TotalResources = 0;
+    }
+
+    // Typ depozytu
+    UPROPERTY(BlueprintReadOnly, Category = "Deposit Info")
+    UDepositDefinition* DepositType;
+
+    // Całkowita liczba depozytów tego typu
+    UPROPERTY(BlueprintReadOnly, Category = "Deposit Info")
+    int32 TotalCount;
+
+    // Liczba aktywnych depozytów
+    UPROPERTY(BlueprintReadOnly, Category = "Deposit Info")
+    int32 ActiveCount;
+
+    // Całkowita ilość zasobów we wszystkich depozytach tego typu
+    UPROPERTY(BlueprintReadOnly, Category = "Deposit Info")
+    int32 TotalResources;
+};
+
 UCLASS(BlueprintType, Blueprintable)
 class FACTORYNET_API ABlueprintDepositManager : public AActor
 {
@@ -92,7 +123,7 @@ public:
     void RegenerateDeposits();
 
     UFUNCTION(BlueprintCallable, Category = "Deposit Spawning")
-    AResourceDeposit* SpawnDepositAt(UDepositDefinition* DepositType, FVector Location);
+    AResourceDeposit* SpawnDepositAtLocation(UDepositDefinition* DepositType, const FVector& Location);
 
     // === CONFIGURATION ===
     UFUNCTION(BlueprintCallable, Category = "Configuration")
@@ -106,26 +137,81 @@ public:
 
     // === QUERY FUNCTIONS ===
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Query")
-    int32 GetTotalSpawnedDeposits() const;
+    TArray<AResourceDeposit*> GetAllSpawnedDeposits();
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Query")
-    TArray<AResourceDeposit*> GetSpawnedDepositsByType(UDepositDefinition* DepositType) const;
+    TArray<AResourceDeposit*> GetDepositsByType(UDepositDefinition* DepositType);
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Query")
-    AResourceDeposit* FindNearestDeposit(FVector Location, UDepositDefinition* DepositType = nullptr) const;
+    AResourceDeposit* GetNearestDeposit(const FVector& Location, UDepositDefinition* DepositType);
+
+    // ✅ NAPRAWIONA FUNKCJA GetDepositInfo - teraz używa poprawnie zdefiniowanej struktury FDepositInfo
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Query")
+    FDepositInfo GetDepositInfo(UDepositDefinition* DepositType);
+
+    // === DEBUG FUNCTIONS ===
+    UFUNCTION(BlueprintCallable, Category = "Debug")
+    void DebugSpawnedDeposits();
 
     // === EVENTS (Blueprint Implementable) ===
     UFUNCTION(BlueprintImplementableEvent, Category = "Events")
     void OnDepositSpawned_BP(AResourceDeposit* SpawnedDeposit, FVector Location);
 
     UFUNCTION(BlueprintImplementableEvent, Category = "Events")
-    void OnAllDepositsGenerated_BP(int32 TotalSpawned);
+    void OnAllDepositsSpawned_BP(const TArray<FSpawnedDepositInfo>& SpawnedDeposits);
 
     UFUNCTION(BlueprintImplementableEvent, Category = "Events")
-    void OnSpawnRuleProcessed_BP(UDepositDefinition* DepositType, int32 SpawnedCount, int32 MaxCount);
+    void OnDepositsRegenerated_BP();
+
+    UFUNCTION(BlueprintImplementableEvent, Category = "Events")
+    void OnDepositsCleared_BP();
+
+    UFUNCTION(BlueprintImplementableEvent, Category = "Events")
+    void OnDepositGenerationStarted_BP();
 
     UFUNCTION(BlueprintImplementableEvent, Category = "Events")
     void OnSpawnAreaChanged_BP(FVector NewCenter, FVector NewSize);
+
+public:
+    // === SPAWN CONFIGURATION ===
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn Configuration")
+    ESpawnTriggerType SpawnTrigger;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn Configuration",
+              meta = (ClampMin = "0.1", ClampMax = "30.0"))
+    float DelayTime;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn Configuration")
+    EDepositDensity DepositDensity;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn Rules")
+    bool bUseDefaultSpawnRules;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn Rules")
+    TArray<FBlueprintSpawnRule> CustomSpawnRules;
+
+    // === SPAWN AREA CONFIGURATION ===
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn Area")
+    bool bUseCustomBounds;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn Area",
+              meta = (EditCondition = "bUseCustomBounds"))
+    FVector CustomSpawnCenter;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn Area",
+              meta = (EditCondition = "bUseCustomBounds"))
+    FVector CustomSpawnSize;
+
+    // === DEBUG & VISUALIZATION ===
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
+    bool bLogSpawnProcess;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
+    bool bShowSpawnArea;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug",
+              meta = (ClampMin = "1.0", ClampMax = "60.0"))
+    float DebugDisplayTime;
 
 protected:
     // === COMPONENTS ===
@@ -135,110 +221,31 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     UBoxComponent* SpawnAreaBounds;
 
-    // === SPAWN CONFIGURATION ===
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn Configuration")
-    ESpawnTriggerType SpawnTrigger = ESpawnTriggerType::OnBeginPlay;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn Configuration", 
-              meta = (EditCondition = "SpawnTrigger == ESpawnTriggerType::Delayed"))
-    float DelayTime = 2.0f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn Configuration")
-    EDepositDensity DepositDensity = EDepositDensity::Normal;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn Configuration")
-    TArray<FBlueprintSpawnRule> CustomSpawnRules;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn Configuration")
-    bool bUseDefaultSpawnRules = true;
-
-    // HUB RELATED (DISABLED FOR NOW - no TransportHub implementation)
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hub Configuration (Disabled)", 
-              meta = (EditCondition = "false", ToolTip = "Disabled until TransportHub is implemented"))
-    bool bAutoConnectToNearestHub = false;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hub Configuration (Disabled)", 
-              meta = (EditCondition = "false", ToolTip = "Disabled until TransportHub is implemented"))
-    float HubSearchRadius = 5000.0f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hub Configuration (Disabled)", 
-              meta = (EditCondition = "false", ToolTip = "Disabled until TransportHub is implemented"))
-    bool bAutoCreateHubsIfNeeded = false;
-
-    // === ADVANCED SETTINGS ===
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Advanced")
-    int32 MaxSpawnAttempts = 1000;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Advanced")
-    int32 GridResolution = 50;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Advanced")
-    bool bUseCustomBounds = false;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Advanced", 
-              meta = (EditCondition = "bUseCustomBounds"))
-    FVector CustomSpawnCenter = FVector::ZeroVector;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Advanced", 
-              meta = (EditCondition = "bUseCustomBounds"))
-    FVector CustomSpawnSize = FVector(10000.0f, 10000.0f, 5000.0f);
-
-    // === VISUAL & DEBUG ===
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual")
-    bool bShowSpawnArea = true;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
-    bool bShowDebugInfo = false;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
-    bool bLogSpawnProcess = true;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
-    bool bDrawDebugSpheres = false;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
-    float DebugDisplayTime = 60.0f;
-
-private:
-    // === INTERNAL STATE ===
+    // === RUNTIME DATA ===
     UPROPERTY()
     UDepositSpawnManager* SpawnManager;
 
     UPROPERTY()
-    TArray<AResourceDeposit*> SpawnedDeposits;
+    bool bHasGenerated;
 
-    bool bHasGenerated = false;
-
-    // Timer handle for delayed spawning
+    UPROPERTY()
     FTimerHandle DelayedSpawnTimerHandle;
 
+private:
     // === INTERNAL FUNCTIONS ===
     void InitializeSpawnManager();
     void SetupSpawnRules();
-    void SetupSpawnArea();
-    
-    // HUB RELATED (DISABLED FOR NOW)
-    // void ConnectDepositsToHubs();
-    // ATransportHub* FindNearestHub(const FVector& Location) const;
-    // void SpawnHubForDeposit(AResourceDeposit* Deposit);
+    FDepositSpawnRule ConvertBlueprintRule(const FBlueprintSpawnRule& BPRule);
     
     // Event handlers
     UFUNCTION()
-    void OnDepositSpawned(AResourceDeposit* Deposit, FVector Location);
-
-    UFUNCTION()
-    void OnAllDepositsSpawned(const TArray<FSpawnedDepositInfo>& SpawnedInfo);
-
-    // Timer functions
-    UFUNCTION()
-    void DelayedGeneration();
-
-    // Helper functions
-    FDepositSpawnRule ConvertBlueprintRule(const FBlueprintSpawnRule& BPRule) const;
-    void UpdateSpawnAreaVisualization();
-    void DrawDebugDeposits() const;
+    void OnDepositSpawned(AResourceDeposit* SpawnedDeposit, FVector SpawnLocation);
     
-    // Validation functions
+    UFUNCTION()
+    void OnAllDepositsSpawned(const TArray<FSpawnedDepositInfo>& SpawnedDeposits);
+    
+    // Utility functions
+    void UpdateSpawnAreaVisualization();
     bool ValidateSpawnConfiguration() const;
     void LogConfigurationSummary() const;
 };

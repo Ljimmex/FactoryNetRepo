@@ -31,7 +31,8 @@ enum class ETerrainType : uint8
     Mountains   UMETA(DisplayName = "Mountains (Góry)"),
     Coastline   UMETA(DisplayName = "Coastline (Wybrzeże)"),
     Forest      UMETA(DisplayName = "Forest (Las)"),
-    Desert      UMETA(DisplayName = "Desert (Pustynia)")
+    Desert      UMETA(DisplayName = "Desert (Pustynia)"),
+    Wetlands    UMETA(DisplayName = "Wetlands (Mokradła)")
 };
 
 USTRUCT(BlueprintType)
@@ -73,19 +74,18 @@ struct FACTORYNET_API FDepositSpawnRule
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
     TArray<ETerrainType> PreferredTerrainTypes;
 
-    // Zakres wysokości (elevation)
+    // Ograniczenia wysokości
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
     float MinElevation;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
     float MaxElevation;
 
-    // Minimalna odległość od wody
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
+    // Ograniczenia wodne
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Water")
     float MinDistanceFromWater;
 
-    // Czy preferuje wybrzeże (dla ropy naftowej)
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Water")
     bool PreferCoastline;
 };
 
@@ -103,23 +103,24 @@ struct FACTORYNET_API FSpawnedDepositInfo
         Elevation = 0.0f;
     }
 
-    UPROPERTY(BlueprintReadOnly, Category = "Info")
+    UPROPERTY(BlueprintReadOnly, Category = "Spawn Info")
     AResourceDeposit* SpawnedActor;
 
-    UPROPERTY(BlueprintReadOnly, Category = "Info")
+    UPROPERTY(BlueprintReadOnly, Category = "Spawn Info")
     UDepositDefinition* DepositDefinition;
 
-    UPROPERTY(BlueprintReadOnly, Category = "Info")
+    UPROPERTY(BlueprintReadOnly, Category = "Spawn Info")
     FVector SpawnLocation;
 
-    UPROPERTY(BlueprintReadOnly, Category = "Info")
+    UPROPERTY(BlueprintReadOnly, Category = "Spawn Info")
     ETerrainType TerrainType;
 
-    UPROPERTY(BlueprintReadOnly, Category = "Info")
+    UPROPERTY(BlueprintReadOnly, Category = "Spawn Info")
     float Elevation;
 };
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDepositSpawned, AResourceDeposit*, SpawnedDeposit, FVector, Location);
+// Delegate declarations
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDepositSpawned, AResourceDeposit*, SpawnedDeposit, FVector, SpawnLocation);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAllDepositsSpawned, const TArray<FSpawnedDepositInfo>&, SpawnedDeposits);
 
 UCLASS(BlueprintType)
@@ -155,6 +156,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Configuration")
     void ClearSpawnRules();
+
+    UFUNCTION(BlueprintCallable, Category = "Configuration")
+    void SetDepositDensity(EDepositDensity NewDensity);
 
     // === QUERY FUNCTIONS ===
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Query")
@@ -219,6 +223,7 @@ protected:
 private:
     // === INTERNAL FUNCTIONS ===
     void LoadDefaultSpawnRules();
+    void CreateFallbackSpawnRules();
     TArray<FVector> GenerateSpawnCandidates();
     bool ValidateSpawnLocation(const FVector& Location, const FDepositSpawnRule& Rule);
     UDepositDefinition* SelectDepositTypeForLocation(const FVector& Location);
@@ -228,10 +233,14 @@ private:
     float CalculateSlope(const FVector& Location) const;
     bool IsLocationInWater(const FVector& Location) const;
     
-    // Distance checking
-    bool IsMinimumDistanceRespected(const FVector& Location, UDepositDefinition* DepositType, float MinDistance);
+    // ✅ NAPRAWIONE: Dodano const qualifier do funkcji IsMinimumDistanceRespected
+    // Distance checking - MUSI być const, żeby można było wywoływać z const funkcji IsValidSpawnLocation
+    bool IsMinimumDistanceRespected(const FVector& Location, UDepositDefinition* DepositType, float MinDistance) const;
     
     // Debug helpers
     void DrawDebugSpawnArea() const;
     void LogSpawnStatistics() const;
+    
+    // Utility functions
+    float GetDensityMultiplier() const;
 };
