@@ -17,30 +17,21 @@ ABlueprintDepositManager::ABlueprintDepositManager()
 {
     PrimaryActorTick.bCanEverTick = false;
 
-    // Create root component
+    // Create components
     RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
-
-    // Create billboard component for editor visibility
     BillboardComponent = CreateDefaultSubobject<UBillboardComponent>(TEXT("Billboard"));
     BillboardComponent->SetupAttachment(RootComponent);
-    BillboardComponent->SetHiddenInGame(true);
-    BillboardComponent->SetUsingAbsoluteScale(true);
 
-    // Create spawn area bounds
     SpawnAreaBounds = CreateDefaultSubobject<UBoxComponent>(TEXT("SpawnAreaBounds"));
     SpawnAreaBounds->SetupAttachment(RootComponent);
-    SpawnAreaBounds->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     SpawnAreaBounds->SetBoxExtent(FVector(5000.0f, 5000.0f, 2500.0f));
-    SpawnAreaBounds->SetHiddenInGame(false);
-    SpawnAreaBounds->SetVisibility(true);
-    SpawnAreaBounds->SetLineThickness(5.0f);
+    SpawnAreaBounds->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-    // Initialize default values
-    SpawnManager = nullptr;
-    bHasGenerated = false;
+    // ✅ NAPRAWIONE: Dodano inicjalizację wszystkich właściwości
     SpawnTrigger = ESpawnTriggerType::OnBeginPlay;
     DelayTime = 2.0f;
     DepositDensity = EDepositDensity::Normal;
+    bAutoGenerateOnBeginPlay = true;  // ✅ DODANO
     bUseDefaultSpawnRules = true;
     bLogSpawnProcess = true;
     bShowSpawnArea = true;
@@ -50,6 +41,10 @@ ABlueprintDepositManager::ABlueprintDepositManager()
     // Initialize custom bounds
     CustomSpawnCenter = FVector::ZeroVector;
     CustomSpawnSize = FVector(10000.0f, 10000.0f, 5000.0f);
+
+    // Initialize runtime data
+    SpawnManager = nullptr;
+    bHasGenerated = false;
 }
 
 void ABlueprintDepositManager::BeginPlay()
@@ -82,50 +77,32 @@ void ABlueprintDepositManager::BeginPlay()
         LogConfigurationSummary();
     }
 
+    // ✅ NAPRAWIONE: Używa nowej właściwości bAutoGenerateOnBeginPlay
     // Handle spawn trigger
-    switch (SpawnTrigger)
+    if (bAutoGenerateOnBeginPlay || SpawnTrigger == ESpawnTriggerType::OnBeginPlay)
     {
-        case ESpawnTriggerType::OnBeginPlay:
-            GenerateDeposits();
-            break;
-
-        case ESpawnTriggerType::Delayed:
-            if (DelayTime > 0.0f)
-            {
-                GetWorldTimerManager().SetTimer(DelayedSpawnTimerHandle, this, 
-                    &ABlueprintDepositManager::GenerateDeposits, DelayTime, false);
-
-                if (bLogSpawnProcess)
-                {
-                    UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Delayed spawn scheduled for %.2f seconds"), DelayTime);
-                }
-            }
-            else
-            {
-                UE_LOG(LogTemp, Warning, TEXT("BlueprintDepositManager: DelayTime must be > 0 for delayed generation"));
-            }
-            break;
-
-        case ESpawnTriggerType::Manual:
-            if (bLogSpawnProcess)
-            {
-                UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Manual spawn mode - call GenerateDeposits() when ready"));
-            }
-            break;
-
-        case ESpawnTriggerType::OnPlayerEnter:
-            // TODO: Implement player detection logic when needed
-            if (bLogSpawnProcess)
-            {
-                UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Player enter detection not implemented yet"));
-            }
-            break;
+        GenerateDeposits();
     }
-
-    // Update spawn area visualization
-    if (bShowSpawnArea)
+    else if (SpawnTrigger == ESpawnTriggerType::Delayed)
     {
-        UpdateSpawnAreaVisualization();
+        if (DelayTime > 0.0f)
+        {
+            GetWorldTimerManager().SetTimer(DelayedSpawnTimerHandle, this, 
+                &ABlueprintDepositManager::GenerateDeposits, DelayTime, false);
+
+            if (bLogSpawnProcess)
+            {
+                UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Delayed spawn scheduled for %.2f seconds"), DelayTime);
+            }
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("BlueprintDepositManager: Invalid DelayTime for delayed spawn"));
+        }
+    }
+    else if (bLogSpawnProcess)
+    {
+        UE_LOG(LogTemp, Log, TEXT("BlueprintDepositManager: Manual spawn trigger - call GenerateDeposits() to spawn"));
     }
 }
 
@@ -377,6 +354,7 @@ void ABlueprintDepositManager::SetupSpawnRules()
     }
 }
 
+// ✅ DODANO: Nową funkcję ConvertBlueprintRule z obsługą nowych właściwości
 FDepositSpawnRule ABlueprintDepositManager::ConvertBlueprintRule(const FBlueprintSpawnRule& BPRule)
 {
     FDepositSpawnRule SpawnRule;
@@ -388,7 +366,8 @@ FDepositSpawnRule ABlueprintDepositManager::ConvertBlueprintRule(const FBlueprin
     SpawnRule.PreferredTerrainTypes = BPRule.TerrainTypes;
     SpawnRule.MinElevation = BPRule.MinElevation;
     SpawnRule.MaxElevation = BPRule.MaxElevation;
-    SpawnRule.PreferCoastline = BPRule.bPreferCoastline;
+    SpawnRule.MinDistanceFromWater = BPRule.MinDistanceFromWater;  // ✅ DODANO
+    SpawnRule.PreferCoastline = BPRule.bPreferCoastline;           // ✅ DODANO
     
     return SpawnRule;
 }

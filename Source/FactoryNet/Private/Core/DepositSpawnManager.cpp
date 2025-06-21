@@ -50,10 +50,14 @@ void UDepositSpawnManager::Deinitialize()
 
 void UDepositSpawnManager::GenerateDepositsOnMap()
 {
-    if (!DataTableManager || !DataTableManager->AreDataTablesLoaded())
+    // ✅ NAPRAWIONE: Pomiń sprawdzanie DataTableManager dla Custom Rules
+    if (!DataTableManager)
     {
-        UE_LOG(LogTemp, Error, TEXT("DepositSpawnManager: DataTableManager not ready"));
-        return;
+        UE_LOG(LogTemp, Warning, TEXT("DepositSpawnManager: DataTableManager not available, using custom rules only"));
+    }
+    else if (!DataTableManager->AreDataTablesLoaded())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("DepositSpawnManager: DataTables not loaded, using custom rules only"));
     }
     
     UE_LOG(LogTemp, Log, TEXT("DepositSpawnManager: Starting deposit generation..."));

@@ -1,4 +1,4 @@
-// BlueprintDepositManager.h
+// BlueprintDepositManager.h - POPRAWIONY
 // Lokalizacja: Source/FactoryNet/Public/Core/BlueprintDepositManager.h
 #pragma once
 
@@ -39,7 +39,9 @@ struct FACTORYNET_API FBlueprintSpawnRule
         TerrainTypes = {ETerrainType::Plains};
         MinElevation = -1000.0f;
         MaxElevation = 1000.0f;
+        MinDistanceFromWater = 500.0f;
         bPreferCoastline = false;
+        RuleDescription = FText::FromString("Default spawn rule");
     }
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn Rule")
@@ -64,8 +66,15 @@ struct FACTORYNET_API FBlueprintSpawnRule
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn Rule")
     float MaxElevation;
 
+    // ✅ DODANO BRAKUJĄCE WŁAŚCIWOŚCI:
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn Rule")
+    float MinDistanceFromWater;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn Rule")
     bool bPreferCoastline;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn Rule")
+    FText RuleDescription;
 };
 
 // ✅ DODANO BRAKUJĄCĄ STRUKTURĘ FDepositInfo
@@ -145,7 +154,6 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Query")
     AResourceDeposit* GetNearestDeposit(const FVector& Location, UDepositDefinition* DepositType);
 
-    // ✅ NAPRAWIONA FUNKCJA GetDepositInfo - teraz używa poprawnie zdefiniowanej struktury FDepositInfo
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Query")
     FDepositInfo GetDepositInfo(UDepositDefinition* DepositType);
 
@@ -184,6 +192,11 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn Configuration")
     EDepositDensity DepositDensity;
 
+    // ✅ DODANO BRAKUJĄCE WŁAŚCIWOŚCI:
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn Configuration")
+    bool bAutoGenerateOnBeginPlay;
+
+    // === SPAWN RULES ===
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn Rules")
     bool bUseDefaultSpawnRules;
 
