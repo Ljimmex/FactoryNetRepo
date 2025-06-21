@@ -20,7 +20,6 @@ public class FactoryNet : ModuleRules
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { 
-			"Components",
 			"RenderCore",
 			"RHI"
 		});

@@ -130,6 +130,8 @@ int32 UResourceStorageComponent::RemoveResource(const FDataTableRowHandle& Resou
 
     return ActualRemoved;
 }
+// ResourceStorageComponent.cpp (Część 2)
+// Kontynuacja implementacji
 
 bool UResourceStorageComponent::CanStoreResource(const FDataTableRowHandle& ResourceType, int32 Amount) const
 {
@@ -268,6 +270,8 @@ void UResourceStorageComponent::SetSingleResourceMode(bool bSingleResource)
     UE_LOG(LogTemp, Log, TEXT("ResourceStorageComponent: Set single resource mode to %s"), 
            bSingleResource ? TEXT("true") : TEXT("false"));
 }
+// ResourceStorageComponent.cpp (Część 3)
+// Kontynuacja implementacji - utility functions
 
 void UResourceStorageComponent::ClearAllResources()
 {
@@ -333,41 +337,34 @@ bool UResourceStorageComponent::TransferResourceTo(UResourceStorageComponent* Ta
     }
 
     // Perform the transfer
-    int32 ActualRemoved = RemoveResource(ResourceType, Amount);
-    if (ActualRemoved > 0)
+    int32 RemovedAmount = RemoveResource(ResourceType, Amount);
+    if (RemovedAmount > 0)
     {
-        bool bAdded = TargetStorage->AddResource(ResourceType, ActualRemoved);
+        bool bAdded = TargetStorage->AddResource(ResourceType, RemovedAmount);
         if (!bAdded)
         {
-            // Rollback if target couldn't accept the resource
-            AddResource(ResourceType, ActualRemoved);
+            // Add back if target failed to accept
+            AddResource(ResourceType, RemovedAmount);
             return false;
         }
+        return true;
     }
 
-    UE_LOG(LogTemp, Log, TEXT("ResourceStorageComponent: Transferred %d of %s to target storage"), 
-           ActualRemoved, *ResourceType.RowName.ToString());
-
-    return ActualRemoved > 0;
+    return false;
 }
 
 void UResourceStorageComponent::SetInitialResource(const FDataTableRowHandle& ResourceType, int32 Amount)
 {
-    if (!IsValidResourceReference(ResourceType) || Amount < 0)
+    if (Amount < 0 || !IsValidResourceReference(ResourceType))
     {
         return;
     }
 
     if (bSingleResourceMode)
     {
-        SetResourceType(ResourceType);
-    }
-
-    // Set the resource amount directly without capacity checks
-    int32 ResourceIndex = FindResourceIndex(ResourceType);
-    
-    if (ResourceIndex == INDEX_NONE)
-    {
+        StoredResourceType = ResourceType;
+        StoredResources.Empty();
+        
         FStoredResource NewResource;
         NewResource.ResourceReference = ResourceType;
         NewResource.Quantity = Amount;
@@ -375,21 +372,31 @@ void UResourceStorageComponent::SetInitialResource(const FDataTableRowHandle& Re
     }
     else
     {
-        StoredResources[ResourceIndex].Quantity = Amount;
+        int32 ResourceIndex = FindResourceIndex(ResourceType);
+        if (ResourceIndex == INDEX_NONE)
+        {
+            FStoredResource NewResource;
+            NewResource.ResourceReference = ResourceType;
+            NewResource.Quantity = Amount;
+            StoredResources.Add(NewResource);
+        }
+        else
+        {
+            StoredResources[ResourceIndex].Quantity = Amount;
+        }
     }
 
     UE_LOG(LogTemp, Log, TEXT("ResourceStorageComponent: Set initial resource %s to %d"), 
            *ResourceType.RowName.ToString(), Amount);
 }
 
-// === PRIVATE FUNCTIONS ===
+// === PRIVATE HELPER FUNCTIONS ===
 
 int32 UResourceStorageComponent::FindResourceIndex(const FDataTableRowHandle& ResourceType) const
 {
-    for (int32 i = 0; i < StoredResources.Num(); i++)
+    for (int32 i = 0; i < StoredResources.Num(); ++i)
     {
-        if (StoredResources[i].ResourceReference.RowName == ResourceType.RowName &&
-            StoredResources[i].ResourceReference.DataTable == ResourceType.DataTable)
+        if (StoredResources[i].ResourceReference.RowName == ResourceType.RowName)
         {
             return i;
         }
@@ -399,33 +406,21 @@ int32 UResourceStorageComponent::FindResourceIndex(const FDataTableRowHandle& Re
 
 bool UResourceStorageComponent::IsValidResourceReference(const FDataTableRowHandle& ResourceType) const
 {
-    return ResourceType.DataTable != nullptr && !ResourceType.RowName.IsNone();
+    return !ResourceType.RowName.IsNone() && ResourceType.DataTable != nullptr;
 }
 
 bool UResourceStorageComponent::CanAcceptResourceType(const FDataTableRowHandle& ResourceType) const
 {
-    if (!IsValidResourceReference(ResourceType))
-    {
-        return false;
-    }
-
     if (bSingleResourceMode)
     {
-        // In single resource mode, only accept the designated resource type
-        if (IsValidResourceReference(StoredResourceType))
+        if (!StoredResourceType.RowName.IsNone())
         {
-            return (ResourceType.RowName == StoredResourceType.RowName && 
-                   ResourceType.DataTable == StoredResourceType.DataTable);
+            return StoredResourceType.RowName == ResourceType.RowName;
         }
-        else
-        {
-            // If no resource type is set, accept any resource (and set it as the type)
-            return true;
-        }
+        return true; // Can accept any type if none is set
     }
-
-    // In multi-resource mode, accept any valid resource
-    return true;
+    
+    return true; // Multi-resource mode accepts all types
 }
 
 void UResourceStorageComponent::BroadcastStorageEvents(const FDataTableRowHandle& ResourceType, 
@@ -433,21 +428,27 @@ void UResourceStorageComponent::BroadcastStorageEvents(const FDataTableRowHandle
                                                      int32 NewAmount, 
                                                      bool bWasAdded)
 {
-    // Broadcast main storage changed event
+    // Broadcast C++ events
     OnStorageChanged.Broadcast(ResourceType, NewAmount, MaxCapacity);
-    OnStorageChanged_BP(ResourceType, NewAmount, MaxCapacity);
-
-    // Broadcast specific add/remove events
-    if (bWasAdded && NewAmount > OldAmount)
+    
+    if (bWasAdded)
     {
-        int32 AddedAmount = NewAmount - OldAmount;
-        OnResourceAdded.Broadcast(ResourceType, AddedAmount);
-        OnResourceAdded_BP(ResourceType, AddedAmount);
+        OnResourceAdded.Broadcast(ResourceType, NewAmount - OldAmount);
     }
-    else if (!bWasAdded && NewAmount < OldAmount)
+    else
     {
-        int32 RemovedAmount = OldAmount - NewAmount;
-        OnResourceRemoved.Broadcast(ResourceType, RemovedAmount);
-        OnResourceRemoved_BP(ResourceType, RemovedAmount);
+        OnResourceRemoved.Broadcast(ResourceType, OldAmount - NewAmount);
+    }
+
+    // Broadcast Blueprint events (fixed parameter name conflict)
+    OnStorageChanged_BP(ResourceType, NewAmount, MaxCapacity);
+    
+    if (bWasAdded)
+    {
+        OnResourceAdded_BP(ResourceType, NewAmount - OldAmount);
+    }
+    else
+    {
+        OnResourceRemoved_BP(ResourceType, OldAmount - NewAmount);
     }
 }

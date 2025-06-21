@@ -114,7 +114,7 @@ public:
 
     // === BLUEPRINT EVENTS ===
     UFUNCTION(BlueprintImplementableEvent, Category = "Events")
-    void OnStorageChanged_BP(FDataTableRowHandle ResourceType, int32 NewAmount, int32 MaxCapacity);
+    void OnStorageChanged_BP(FDataTableRowHandle ResourceType, int32 NewAmount, int32 MaxCapacityParam);
 
     UFUNCTION(BlueprintImplementableEvent, Category = "Events")
     void OnResourceAdded_BP(FDataTableRowHandle ResourceType, int32 Amount);
