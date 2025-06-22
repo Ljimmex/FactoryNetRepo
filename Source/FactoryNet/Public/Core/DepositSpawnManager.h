@@ -160,6 +160,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Configuration")
     void SetDepositDensity(EDepositDensity NewDensity);
 
+    // ✅ DODANO: Debug testing function
+    UFUNCTION(BlueprintCallable, Category = "Debug")
+    void TestProbabilityGeneration(float TestProbability = 0.5f, int32 TestCount = 100);
+
     // === QUERY FUNCTIONS ===
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Query")
     TArray<AResourceDeposit*> GetAllSpawnedDeposits() const;
@@ -212,10 +216,7 @@ protected:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn Configuration")
     int32 GridResolution = 100;
-
-    // ✅ DODANO: Debug testing function
-    UFUNCTION(BlueprintCallable, Category = "Debug")
-    void TestProbabilityGeneration(float TestProbability = 0.5f, int32 TestCount = 100);
+    
 
     // === RUNTIME DATA ===
     UPROPERTY()
