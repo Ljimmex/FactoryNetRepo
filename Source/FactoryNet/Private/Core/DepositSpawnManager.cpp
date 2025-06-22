@@ -10,6 +10,7 @@
 #include "Engine/GameInstance.h"
 #include "DrawDebugHelpers.h"
 #include "Components/StaticMeshComponent.h"
+#include "EngineUtils.h"  // ✅ DODANO: Required for TActorIterator
 
 UDepositSpawnManager::UDepositSpawnManager()
 {
@@ -48,9 +49,9 @@ void UDepositSpawnManager::Deinitialize()
     Super::Deinitialize();
 }
 
+// ✅ DODAJ: Nową uproszczoną funkcję GenerateDepositsOnMap
 void UDepositSpawnManager::GenerateDepositsOnMap()
 {
-    // ✅ NAPRAWIONE: Pomiń sprawdzanie DataTableManager dla Custom Rules
     if (!DataTableManager)
     {
         UE_LOG(LogTemp, Warning, TEXT("DepositSpawnManager: DataTableManager not available, using custom rules only"));
@@ -70,7 +71,7 @@ void UDepositSpawnManager::GenerateDepositsOnMap()
     
     UE_LOG(LogTemp, Log, TEXT("DepositSpawnManager: Generated %d spawn candidates"), SpawnCandidates.Num());
     
-    // Process each spawn rule
+    // ✅ UPROSZCZONY ALGORYTM SPAWNU
     for (const FDepositSpawnRule& SpawnRule : SpawnRules)
     {
         if (!SpawnRule.DepositDefinition)
@@ -80,25 +81,54 @@ void UDepositSpawnManager::GenerateDepositsOnMap()
         
         int32 SpawnedCount = 0;
         int32 AttemptCount = 0;
+        int32 ValidLocationCount = 0;
         
-        for (const FVector& Candidate : SpawnCandidates)
+        UE_LOG(LogTemp, Log, TEXT("DepositSpawnManager: Processing rule for %s (Probability: %.3f, Max: %d)"), 
+               *SpawnRule.DepositDefinition->DepositName.ToString(),
+               SpawnRule.SpawnProbability,
+               SpawnRule.MaxDepositCount);
+        
+        // ✅ Shuffle candidates dla lepszej randomizacji
+        TArray<FVector> ShuffledCandidates = SpawnCandidates;
+        for (int32 i = ShuffledCandidates.Num() - 1; i > 0; i--)
+        {
+            int32 RandomIndex = FMath::RandRange(0, i);
+            ShuffledCandidates.Swap(i, RandomIndex);
+        }
+        
+        for (const FVector& Candidate : ShuffledCandidates)
         {
             if (SpawnedCount >= SpawnRule.MaxDepositCount)
             {
+                UE_LOG(LogTemp, VeryVerbose, TEXT("  Reached max count (%d) for %s"), 
+                       SpawnRule.MaxDepositCount, *SpawnRule.DepositDefinition->DepositName.ToString());
                 break;
             }
             
             AttemptCount++;
             if (AttemptCount > MaxSpawnAttempts)
             {
+                UE_LOG(LogTemp, Warning, TEXT("  Max spawn attempts (%d) reached for %s"), 
+                       MaxSpawnAttempts, *SpawnRule.DepositDefinition->DepositName.ToString());
                 break;
             }
             
-            // Check if this location is valid for this spawn rule
-            if (IsValidSpawnLocation(Candidate, SpawnRule))
+            // ✅ UPROSZCZONE: Tylko sprawdzenie dystansu
+            bool bLocationValid = IsMinimumDistanceRespected(Candidate, SpawnRule.DepositDefinition, SpawnRule.MinDistanceFromOthers);
+            
+            if (bLocationValid)
             {
-                // Probability check
-                if (FMath::RandRange(0.0f, 1.0f) <= SpawnRule.SpawnProbability)
+                ValidLocationCount++;
+                
+                // ✅ SPRAWDZENIE PROBABILITY z dodatkowym loggingiem
+                float RandomValue = FMath::RandRange(0.0f, 1.0f);
+                bool bShouldSpawn = RandomValue <= SpawnRule.SpawnProbability;
+                
+                UE_LOG(LogTemp, VeryVerbose, TEXT("  Valid location %d: Random=%.3f vs Prob=%.3f -> %s"), 
+                       ValidLocationCount, RandomValue, SpawnRule.SpawnProbability, 
+                       bShouldSpawn ? TEXT("SPAWN") : TEXT("SKIP"));
+                
+                if (bShouldSpawn)
                 {
                     AResourceDeposit* SpawnedDeposit = SpawnDepositAtLocation(
                         SpawnRule.DepositDefinition, Candidate, FRotator::ZeroRotator);
@@ -107,17 +137,27 @@ void UDepositSpawnManager::GenerateDepositsOnMap()
                     {
                         SpawnedCount++;
                         
-                        UE_LOG(LogTemp, Log, TEXT("DepositSpawnManager: Spawned %s at %s"), 
+                        UE_LOG(LogTemp, Log, TEXT("DepositSpawnManager: ✅ Spawned %s at %s (Count: %d/%d)"), 
                             *SpawnRule.DepositDefinition->DepositName.ToString(),
-                            *Candidate.ToString());
+                            *Candidate.ToString(),
+                            SpawnedCount,
+                            SpawnRule.MaxDepositCount);
+                    }
+                    else
+                    {
+                        UE_LOG(LogTemp, Warning, TEXT("  ❌ Failed to spawn at %s"), *Candidate.ToString());
                     }
                 }
             }
+            else
+            {
+                UE_LOG(LogTemp, VeryVerbose, TEXT("  ❌ Location invalid (too close to other deposits)"));
+            }
         }
         
-        UE_LOG(LogTemp, Log, TEXT("DepositSpawnManager: Spawned %d/%d deposits of type %s after %d attempts"), 
-            SpawnedCount, SpawnRule.MaxDepositCount, 
-            *SpawnRule.DepositDefinition->DepositName.ToString(), AttemptCount);
+        UE_LOG(LogTemp, Log, TEXT("DepositSpawnManager: 📊 %s Summary: %d/%d spawned from %d valid locations (%d attempts)"), 
+            *SpawnRule.DepositDefinition->DepositName.ToString(),
+            SpawnedCount, SpawnRule.MaxDepositCount, ValidLocationCount, AttemptCount);
     }
     
     LogSpawnStatistics();
@@ -139,6 +179,7 @@ void UDepositSpawnManager::ClearAllSpawnedDeposits()
     SpawnedDeposits.Empty();
 }
 
+// ✅ UPROSZCZONA FUNKCJA SpawnDepositAtLocation (usuń collision check)
 AResourceDeposit* UDepositSpawnManager::SpawnDepositAtLocation(UDepositDefinition* DepositDef, 
                                                              const FVector& Location, 
                                                              const FRotator& Rotation)
@@ -156,6 +197,8 @@ AResourceDeposit* UDepositSpawnManager::SpawnDepositAtLocation(UDepositDefinitio
         return nullptr;
     }
 
+    // ✅ USUNIĘTE: Collision check - pozwól engine'owi obsłużyć
+    
     // Spawn the deposit actor
     FActorSpawnParameters SpawnParams;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
@@ -173,8 +216,8 @@ AResourceDeposit* UDepositSpawnManager::SpawnDepositAtLocation(UDepositDefinitio
         SpawnInfo.SpawnedActor = SpawnedDeposit;
         SpawnInfo.DepositDefinition = DepositDef;
         SpawnInfo.SpawnLocation = Location;
-        SpawnInfo.TerrainType = AnalyzeTerrainType(Location);
-        SpawnInfo.Elevation = GetElevationAtLocation(Location);
+        SpawnInfo.TerrainType = ETerrainType::Plains;  // ✅ UPROSZCZENIE
+        SpawnInfo.Elevation = 0.0f;  // ✅ UPROSZCZENIE
         
         SpawnedDeposits.Add(SpawnInfo);
         
@@ -186,7 +229,7 @@ AResourceDeposit* UDepositSpawnManager::SpawnDepositAtLocation(UDepositDefinitio
     }
     else
     {
-        UE_LOG(LogTemp, Error, TEXT("DepositSpawnManager: Failed to spawn deposit actor"));
+        UE_LOG(LogTemp, Error, TEXT("DepositSpawnManager: Failed to spawn deposit actor at %s"), *Location.ToString());
     }
     
     return SpawnedDeposit;
@@ -276,71 +319,22 @@ float UDepositSpawnManager::GetMinimumDistanceBetweenDeposits(UDepositDefinition
 
 ETerrainType UDepositSpawnManager::AnalyzeTerrainType(const FVector& Location) const
 {
-    float Elevation = GetElevationAtLocation(Location);
-    float Slope = CalculateSlope(Location);
-    bool bIsNearWater = IsLocationInWater(Location);
-    
-    // Simple terrain classification
-    if (bIsNearWater)
-    {
-        return ETerrainType::Coastline;
-    }
-    else if (Elevation > 500.0f && Slope > 0.3f)
-    {
-        return ETerrainType::Mountains;
-    }
-    else if (Elevation > 200.0f && Slope > 0.15f)
-    {
-        return ETerrainType::Hills;
-    }
-    else if (Elevation < -10.0f)
-    {
-        return ETerrainType::Desert;
-    }
-    else
-    {
-        return ETerrainType::Plains;
-    }
+    // ✅ UPROSZCZENIE: Zawsze zwracaj Plains (wszystkie lokacje są valid)
+    return ETerrainType::Plains;
 }
 
 float UDepositSpawnManager::GetElevationAtLocation(const FVector& Location) const
 {
-    UWorld* World = GetWorld();
-    if (!World)
-    {
-        return 0.0f;
-    }
-    
-    // Simple line trace to get ground elevation
-    FVector Start = Location + FVector(0, 0, 10000.0f);
-    FVector End = Location - FVector(0, 0, 10000.0f);
-    
-    FHitResult HitResult;
-    FCollisionQueryParams QueryParams;
-    QueryParams.bTraceComplex = false;
-    
-    if (World->LineTraceSingleByChannel(HitResult, Start, End, ECC_WorldStatic, QueryParams))
-    {
-        return HitResult.Location.Z;
-    }
-    
-    return Location.Z; // Fallback to input location Z
+    // ✅ UPROSZCZENIE: Zawsze zwracaj neutralną wysokość
+    return 0.0f;
 }
 
 bool UDepositSpawnManager::IsLocationNearWater(const FVector& Location, float WaterCheckRadius) const
 {
-    // Simplified water detection - in real implementation this would check for water bodies
-    float Elevation = GetElevationAtLocation(Location);
-    return Elevation < 50.0f; // Assume locations below 50 units are near water
+    // ✅ UPROSZCZENIE: Nigdy nie sprawdzaj wody
+    return false;
 }
 
-// ================================
-// NAPRAWIONE BŁĘDY LINII 185-410
-// ================================
-
-// ✅ BŁĄD 1 NAPRAWIONY: Cannot convert const UDepositSpawnManager to UDepositSpawnManager
-// Problem: Funkcja IsMinimumDistanceRespected była wywoływana z obiektu const, ale nie była oznaczona jako const
-// Rozwiązanie: Dodano const qualifier do funkcji IsMinimumDistanceRespected
 bool UDepositSpawnManager::IsMinimumDistanceRespected(const FVector& Location, UDepositDefinition* DepositType, float MinDistance) const
 {
     for (const FSpawnedDepositInfo& Info : SpawnedDeposits)
@@ -359,31 +353,7 @@ bool UDepositSpawnManager::IsMinimumDistanceRespected(const FVector& Location, U
 
 bool UDepositSpawnManager::IsValidSpawnLocation(const FVector& Location, const FDepositSpawnRule& SpawnRule) const
 {
-    // Check terrain type
-    ETerrainType TerrainType = AnalyzeTerrainType(Location);
-    if (!SpawnRule.PreferredTerrainTypes.Contains(TerrainType))
-    {
-        return false;
-    }
-    
-    // Check elevation
-    float Elevation = GetElevationAtLocation(Location);
-    if (Elevation < SpawnRule.MinElevation || Elevation > SpawnRule.MaxElevation)
-    {
-        return false;
-    }
-    
-    // Check distance from water
-    if (SpawnRule.PreferCoastline && !IsLocationNearWater(Location, SpawnRule.MinDistanceFromWater))
-    {
-        return false;
-    }
-    else if (!SpawnRule.PreferCoastline && IsLocationNearWater(Location, SpawnRule.MinDistanceFromWater))
-    {
-        return false;
-    }
-    
-    // ✅ NAPRAWIONO: Używamy const qualifier dla funkcji IsMinimumDistanceRespected
+    // ✅ UPROSZCZENIE: Tylko sprawdzenie dystansu między depositami
     return IsMinimumDistanceRespected(Location, SpawnRule.DepositDefinition, SpawnRule.MinDistanceFromOthers);
 }
 
@@ -610,43 +580,14 @@ void UDepositSpawnManager::SpawnDepositFromRule(const FDepositSpawnRule& Rule, c
 
 float UDepositSpawnManager::CalculateSlope(const FVector& Location) const
 {
-    UWorld* World = GetWorld();
-    if (!World)
-    {
-        return 0.0f;
-    }
-    
-    // Sample elevation at multiple points around the location
-    float SampleDistance = 100.0f;
-    TArray<FVector> SamplePoints = {
-        Location + FVector(SampleDistance, 0, 0),
-        Location + FVector(-SampleDistance, 0, 0),
-        Location + FVector(0, SampleDistance, 0),
-        Location + FVector(0, -SampleDistance, 0)
-    };
-    
-    float CenterElevation = GetElevationAtLocation(Location);
-    float MaxSlopeDiff = 0.0f;
-    
-    for (const FVector& SamplePoint : SamplePoints)
-    {
-        float SampleElevation = GetElevationAtLocation(SamplePoint);
-        float ElevationDiff = FMath::Abs(SampleElevation - CenterElevation);
-        float Slope = ElevationDiff / SampleDistance;
-        MaxSlopeDiff = FMath::Max(MaxSlopeDiff, Slope);
-    }
-    
-    return MaxSlopeDiff;
+    // ✅ UPROSZCZENIE: Zawsze płaski teren
+    return 0.0f;
 }
 
 bool UDepositSpawnManager::IsLocationInWater(const FVector& Location) const
 {
-    // Simplified water detection
-    // In a real implementation, this would check for water volumes or specific water materials
-    float Elevation = GetElevationAtLocation(Location);
-    
-    // Consider locations below sea level as potentially in water
-    return Elevation < 0.0f;
+    // ✅ UPROSZCZENIE: Nigdy nie ma wody
+    return false;
 }
 
 void UDepositSpawnManager::DrawDebugSpawnArea() const
@@ -720,6 +661,35 @@ float UDepositSpawnManager::GetDensityMultiplier() const
         default:
             return 1.0f;
     }
+}
+// ✅ DODAJ: Debug function do testowania probability
+void UDepositSpawnManager::TestProbabilityGeneration(float TestProbability, int32 TestCount)
+{
+    UE_LOG(LogTemp, Warning, TEXT("=== TESTING PROBABILITY GENERATION ==="));
+    UE_LOG(LogTemp, Warning, TEXT("Test Probability: %.3f, Test Count: %d"), TestProbability, TestCount);
+    
+    int32 SuccessCount = 0;
+    for (int32 i = 0; i < TestCount; i++)
+    {
+        float RandomValue = FMath::RandRange(0.0f, 1.0f);
+        bool bSuccess = RandomValue <= TestProbability;
+        
+        if (bSuccess)
+        {
+            SuccessCount++;
+        }
+        
+        if (i < 10) // Show first 10 for debugging
+        {
+            UE_LOG(LogTemp, Warning, TEXT("  Test %d: Random=%.3f -> %s"), 
+                   i + 1, RandomValue, bSuccess ? TEXT("SUCCESS") : TEXT("FAIL"));
+        }
+    }
+    
+    float ActualProbability = (float)SuccessCount / (float)TestCount;
+    UE_LOG(LogTemp, Warning, TEXT("Results: %d/%d successes = %.3f%% (Expected: %.3f%%)"), 
+           SuccessCount, TestCount, ActualProbability * 100.0f, TestProbability * 100.0f);
+    UE_LOG(LogTemp, Warning, TEXT("=========================================="));
 }
 
 void UDepositSpawnManager::SetDepositDensity(EDepositDensity NewDensity)

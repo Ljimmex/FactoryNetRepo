@@ -213,6 +213,10 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn Configuration")
     int32 GridResolution = 100;
 
+    // ✅ DODANO: Debug testing function
+    UFUNCTION(BlueprintCallable, Category = "Debug")
+    void TestProbabilityGeneration(float TestProbability = 0.5f, int32 TestCount = 100);
+
     // === RUNTIME DATA ===
     UPROPERTY()
     TArray<FSpawnedDepositInfo> SpawnedDeposits;
@@ -236,6 +240,9 @@ private:
     // ✅ NAPRAWIONE: Dodano const qualifier do funkcji IsMinimumDistanceRespected
     // Distance checking - MUSI być const, żeby można było wywoływać z const funkcji IsValidSpawnLocation
     bool IsMinimumDistanceRespected(const FVector& Location, UDepositDefinition* DepositType, float MinDistance) const;
+
+    // ✅ DODANO: Nowa funkcja collision checking
+    bool IsLocationSafeForSpawn(const FVector& Location, float MinDistance) const;
     
     // Debug helpers
     void DrawDebugSpawnArea() const;

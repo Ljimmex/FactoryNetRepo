@@ -9,11 +9,19 @@
   <component name="ChangeListManager">
     <list default="true" id="0fe1c858-015e-46a7-a2be-0f59384e2b76" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.FactoryNet.dir/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.FactoryNet.dir/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Config/DefaultEngine.ini" beforeDir="false" afterPath="$PROJECT_DIR$/Config/DefaultEngine.ini" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/Blueprints/BP_MasterDepositManager.uasset" beforeDir="false" afterPath="$PROJECT_DIR$/Content/Blueprints/BP_MasterDepositManager.uasset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/__ExternalActors__/Maps/NewMap/0/DP/OAIX50BSPJ9H1NJM97AM9V.uasset" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/__ExternalActors__/Maps/NewMap/0/R7/ZM5INJUFXZQCBIV54MDDPI.uasset" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/__ExternalActors__/Maps/NewMap/1/CT/ITQJXBZW511YF7DBTPI4YO.uasset" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/__ExternalActors__/Maps/NewMap/8/03/ZAKY3LLURMF045ZNYNQ7RI.uasset" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/__ExternalActors__/Maps/NewMap/8/KN/O62QAXLGPZGJMK3ZNS9PBB.uasset" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/__ExternalActors__/Maps/NewMap/8/MM/DU9P960L4JHKK9FEIT7X6I.uasset" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Content/__ExternalActors__/Maps/NewMap/A/ZX/BY39HTIIA92HYEJFAVBELY.uasset" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Source/FactoryNet/Private/Buildings/Base/ResourceDeposit.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/Source/FactoryNet/Private/Buildings/Base/ResourceDeposit.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Source/FactoryNet/Private/Core/BlueprintDepositManager.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/Source/FactoryNet/Private/Core/BlueprintDepositManager.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Source/FactoryNet/Private/Core/DataTableManager.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/Source/FactoryNet/Private/Core/DataTableManager.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Source/FactoryNet/Private/Core/DepositSpawnManager.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/Source/FactoryNet/Private/Core/DepositSpawnManager.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Source/FactoryNet/Public/Core/BlueprintDepositManager.h" beforeDir="false" afterPath="$PROJECT_DIR$/Source/FactoryNet/Public/Core/BlueprintDepositManager.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Source/FactoryNet/Public/Buildings/Base/ResourceDeposit.h" beforeDir="false" afterPath="$PROJECT_DIR$/Source/FactoryNet/Public/Buildings/Base/ResourceDeposit.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Source/FactoryNet/Public/Core/DepositSpawnManager.h" beforeDir="false" afterPath="$PROJECT_DIR$/Source/FactoryNet/Public/Core/DepositSpawnManager.h" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -176,6 +184,7 @@
       <workItem from="1750524157260" duration="2966000" />
       <workItem from="1750539728984" duration="1627000" />
       <workItem from="1750541434553" duration="4739000" />
+      <workItem from="1750586949363" duration="2587000" />
     </task>
     <servers />
   </component>

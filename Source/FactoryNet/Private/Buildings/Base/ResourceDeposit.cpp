@@ -1,16 +1,17 @@
-// ResourceDeposit.cpp
+// ResourceDeposit.cpp - POPRAWIONY Z COLLISION I FIX AVAILABLE RESOURCES
 // Lokalizacja: Source/FactoryNet/Private/Buildings/Base/ResourceDeposit.cpp
 
 #include "Buildings/Base/ResourceDeposit.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SceneComponent.h"
+#include "Components/SphereComponent.h"  // ✅ DODANO
 #include "Components/ResourceStorageComponent.h"
 #include "Data/DepositDefinition.h"
-// Temporarily commented out until TransportHub is implemented
-// #include "Buildings/Base/TransportHub.h"
 #include "Core/DataTableManager.h"
 #include "Engine/Engine.h"
 #include "DrawDebugHelpers.h"
+#include "Engine/World.h"  // ✅ DODANO
+#include "EngineUtils.h"  // ✅ DODANO: Required for TActorIterator
 
 AResourceDeposit::AResourceDeposit()
 {
@@ -23,23 +24,38 @@ AResourceDeposit::AResourceDeposit()
     DepositMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("DepositMesh"));
     DepositMesh->SetupAttachment(RootComponent);
 
+    // ✅ DODANO: Collision Component
+    CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionSphere"));
+    CollisionComponent->SetupAttachment(RootComponent);
+    CollisionComponent->SetSphereRadius(CollisionRadius);
+    CollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    CollisionComponent->SetCollisionObjectType(ECollisionChannel::ECC_WorldStatic);
+    CollisionComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
+
     StorageComponent = CreateDefaultSubobject<UResourceStorageComponent>(TEXT("ResourceStorage"));
 
     // Initialize default values
     CurrentLevel = 1;
     CurrentReserves = 0;
     LastExtractionTime = 0.0f;
-    // ConnectedHub = nullptr; // Commented out until TransportHub is implemented
     bAutoExtractToStorage = true;
     ExtractionTickRate = 1.0f;
     bShowDebugInfo = false;
     TimeSinceLastExtraction = 0.0f;
     bHasBeenInitialized = false;
+    
+    // ✅ DODANO: Collision defaults
+    CollisionRadius = 500.0f;
+    bPreventOverlapping = true;
+    bShowCollisionRadius = false;
 }
 
 void AResourceDeposit::BeginPlay()
 {
     Super::BeginPlay();
+    
+    // Setup collision
+    SetupCollision();
     
     // If we have a deposit definition set in editor, initialize with it
     if (DepositDefinition && !bHasBeenInitialized)
@@ -61,9 +77,16 @@ void AResourceDeposit::Tick(float DeltaTime)
     if (bShowDebugInfo)
     {
         DrawDebugString(GetWorld(), GetActorLocation() + FVector(0, 0, 200), 
-                       FString::Printf(TEXT("Reserves: %d/%d\nLevel: %d\nExtraction: %.1f/s"), 
-                                     GetAvailableResource(), CurrentReserves, CurrentLevel, GetCurrentExtractionRate()),
+                       FString::Printf(TEXT("Reserves: %d/%d\nLevel: %d\nExtraction: %.1f/s\nStored: %d/%d"), 
+                                     GetAvailableResource(), CurrentReserves, CurrentLevel, GetCurrentExtractionRate(),
+                                     GetCurrentStoredAmount(), GetMaxStorage()),
                        nullptr, FColor::White, 0.0f);
+    }
+    
+    // ✅ DODANO: Collision radius debug
+    if (bShowCollisionRadius && GetWorld())
+    {
+        DrawDebugSphere(GetWorld(), GetActorLocation(), CollisionRadius, 16, FColor::Orange, false, 0.1f, 0, 2.0f);
     }
 }
 
@@ -91,7 +114,20 @@ void AResourceDeposit::InitializeWithDefinition(UDepositDefinition* DepositDef)
         FDepositLevel LevelData = GetCurrentLevelData();
         StorageComponent->SetMaxCapacity(LevelData.MaxStorage);
         StorageComponent->SetResourceType(DepositDef->ResourceReference);
+        
+        // ✅ POPRAWKA: Pre-fill storage dla renewable resources
+        if (DepositDef->IsRenewable)
+        {
+            // Start with some initial resources in storage
+            int32 InitialAmount = FMath::RoundToInt(LevelData.MaxStorage * 0.1f); // 10% initial fill
+            StorageComponent->SetInitialResource(DepositDef->ResourceReference, InitialAmount);
+            
+            UE_LOG(LogTemp, Log, TEXT("ResourceDeposit: Pre-filled renewable storage with %d resources"), InitialAmount);
+        }
     }
+
+    // ✅ DODANO: Update collision size based on deposit type
+    UpdateCollisionSize();
 
     bHasBeenInitialized = true;
     UpdateVisualMesh();
@@ -108,6 +144,7 @@ void AResourceDeposit::InitializeFromSpawn(UDepositDefinition* DepositDef, int32
     {
         CurrentLevel = InitialLevel;
         UpdateVisualMesh();
+        UpdateCollisionSize();  // ✅ DODANO
     }
 }
 
@@ -129,6 +166,14 @@ int32 AResourceDeposit::ExtractResource(int32 RequestedAmount)
         {
             CurrentReserves -= ActualAmount;
             CurrentReserves = FMath::Max(0, CurrentReserves);
+        }
+        else
+        {
+            // For renewable resources, remove from storage
+            if (StorageComponent)
+            {
+                ActualAmount = StorageComponent->RemoveResource(GetResourceType(), ActualAmount);
+            }
         }
 
         LastExtractionTime = GetWorld()->GetTimeSeconds();
@@ -163,9 +208,10 @@ float AResourceDeposit::GetCurrentExtractionRate() const
     return LevelData.ExtractionRate;
 }
 
+// ✅ POPRAWKA: GetAvailableResource teraz poprawnie zwraca dane
 int32 AResourceDeposit::GetAvailableResource() const
 {
-    if (!bHasBeenInitialized || !StorageComponent)
+    if (!bHasBeenInitialized)
     {
         return 0;
     }
@@ -173,7 +219,11 @@ int32 AResourceDeposit::GetAvailableResource() const
     // For renewable resources, check storage
     if (IsRenewable())
     {
-        return StorageComponent->GetCurrentAmount(GetResourceType());
+        if (StorageComponent)
+        {
+            return StorageComponent->GetCurrentAmount(GetResourceType());
+        }
+        return 0;
     }
     else
     {
@@ -202,6 +252,7 @@ bool AResourceDeposit::UpgradeToLevel(int32 TargetLevel)
 
     CurrentLevel = TargetLevel;
     UpdateVisualMesh();
+    UpdateCollisionSize();  // ✅ DODANO
     
     // Update storage capacity
     if (StorageComponent)
@@ -256,37 +307,6 @@ int32 AResourceDeposit::GetMaxLevel() const
     return DepositDefinition->MaxLevel;
 }
 
-// TEMPORARILY DISABLED HUB FUNCTIONS (Uncomment when TransportHub is implemented)
-/*
-void AResourceDeposit::ConnectToHub(ATransportHub* Hub)
-{
-    if (!Hub)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("ResourceDeposit: Attempted to connect to null hub"));
-        return;
-    }
-
-    if (ConnectedHub && ConnectedHub != Hub)
-    {
-        DisconnectFromHub();
-    }
-
-    ConnectedHub = Hub;
-    UE_LOG(LogTemp, Log, TEXT("ResourceDeposit: Connected %s to hub"), 
-           *GetDepositName().ToString());
-}
-
-void AResourceDeposit::DisconnectFromHub()
-{
-    if (ConnectedHub)
-    {
-        UE_LOG(LogTemp, Log, TEXT("ResourceDeposit: Disconnected %s from hub"), 
-               *GetDepositName().ToString());
-        ConnectedHub = nullptr;
-    }
-}
-*/
-
 bool AResourceDeposit::RequiresHub() const
 {
     if (!DepositDefinition)
@@ -336,7 +356,7 @@ bool AResourceDeposit::IsDepleted() const
 
     if (IsRenewable())
     {
-        return false; // Renewable resources never deplete
+        return false; // Renewable resources never deplete completely
     }
 
     return CurrentReserves <= 0;
@@ -360,6 +380,74 @@ float AResourceDeposit::GetDepletionPercentage() const
     return 1.0f - (RemainingReserves / OriginalReserves);
 }
 
+// === STORAGE ACCESS FUNCTIONS ===
+
+int32 AResourceDeposit::GetCurrentStoredAmount() const
+{
+    if (!StorageComponent || !bHasBeenInitialized)
+    {
+        return 0;
+    }
+
+    return StorageComponent->GetCurrentAmount(GetResourceType());
+}
+
+float AResourceDeposit::GetStoragePercentage() const
+{
+    if (!StorageComponent || !bHasBeenInitialized)
+    {
+        return 0.0f;
+    }
+
+    int32 CurrentAmount = GetCurrentStoredAmount();
+    int32 MaxCapacity = GetMaxStorage();
+    
+    if (MaxCapacity <= 0)
+    {
+        return 0.0f;
+    }
+
+    return (float)CurrentAmount / (float)MaxCapacity;
+}
+
+// ✅ DODANO: Collision functions
+bool AResourceDeposit::IsLocationTooCloseToOthers(const FVector& TestLocation, float MinDistance) const
+{
+    if (!GetWorld())
+    {
+        return false;
+    }
+
+    // Check distance to this deposit
+    float DistanceToThis = FVector::Dist(GetActorLocation(), TestLocation);
+    if (DistanceToThis < MinDistance)
+    {
+        return true;
+    }
+
+    // Check distance to other deposits
+    UClass* DepositClass = AResourceDeposit::StaticClass();
+    for (TActorIterator<AResourceDeposit> ActorItr(GetWorld()); ActorItr; ++ActorItr)
+    {
+        AResourceDeposit* OtherDeposit = *ActorItr;
+        if (OtherDeposit && OtherDeposit != this)
+        {
+            float Distance = FVector::Dist(OtherDeposit->GetActorLocation(), TestLocation);
+            if (Distance < MinDistance)
+            {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+float AResourceDeposit::GetCollisionRadius() const
+{
+    return CollisionRadius;
+}
+
 void AResourceDeposit::UpdateVisualMesh()
 {
     if (!DepositDefinition || !DepositMesh)
@@ -371,6 +459,53 @@ void AResourceDeposit::UpdateVisualMesh()
 }
 
 // === PRIVATE FUNCTIONS ===
+
+void AResourceDeposit::SetupCollision()
+{
+    if (!CollisionComponent)
+    {
+        return;
+    }
+
+    // Set collision radius
+    CollisionComponent->SetSphereRadius(CollisionRadius);
+    
+    // Configure collision settings
+    CollisionComponent->SetCollisionEnabled(bPreventOverlapping ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
+    CollisionComponent->SetCollisionObjectType(ECollisionChannel::ECC_WorldStatic);
+    CollisionComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
+    
+    UE_LOG(LogTemp, VeryVerbose, TEXT("ResourceDeposit: Setup collision with radius %.1f"), CollisionRadius);
+}
+
+void AResourceDeposit::UpdateCollisionSize()
+{
+    if (!CollisionComponent || !DepositDefinition)
+    {
+        return;
+    }
+
+    // Adjust collision radius based on deposit level and type
+    float BaseRadius = CollisionRadius;
+    float LevelMultiplier = 1.0f + (CurrentLevel - 1) * 0.2f; // 20% increase per level
+    
+    // Different base sizes for different deposit types
+    FString DepositName = DepositDefinition->DepositName.ToString();
+    if (DepositName.Contains("Mega") || DepositName.Contains("Large"))
+    {
+        BaseRadius *= 1.5f;
+    }
+    else if (DepositName.Contains("Small") || DepositName.Contains("Mini"))
+    {
+        BaseRadius *= 0.7f;
+    }
+    
+    float FinalRadius = BaseRadius * LevelMultiplier;
+    CollisionComponent->SetSphereRadius(FinalRadius);
+    
+    UE_LOG(LogTemp, VeryVerbose, TEXT("ResourceDeposit: Updated collision radius to %.1f (Level %d)"), 
+           FinalRadius, CurrentLevel);
+}
 
 void AResourceDeposit::TickAutoExtraction(float DeltaTime)
 {
@@ -391,8 +526,15 @@ void AResourceDeposit::TickAutoExtraction(float DeltaTime)
             // For renewable resources, generate directly to storage
             if (IsRenewable())
             {
-                StorageComponent->AddResource(GetResourceType(), ExtractAmount);
-                BroadcastExtractionEvent(ExtractAmount);
+                // Check if we have space in storage
+                int32 SpaceAvailable = StorageComponent->GetAvailableSpace(GetResourceType());
+                int32 ActualAmount = FMath::Min(ExtractAmount, SpaceAvailable);
+                
+                if (ActualAmount > 0)
+                {
+                    StorageComponent->AddResource(GetResourceType(), ActualAmount);
+                    BroadcastExtractionEvent(ActualAmount);
+                }
             }
             else
             {
@@ -408,11 +550,7 @@ void AResourceDeposit::TickAutoExtraction(float DeltaTime)
         TimeSinceLastExtraction = 0.0f;
     }
 
-    // Regeneration for renewable resources
-    if (IsRenewable())
-    {
-        RegenerateResource(DeltaTime);
-    }
+    // Regeneration for renewable resources is now handled in auto extraction above
 }
 
 void AResourceDeposit::UpdateMeshForLevel()
@@ -442,32 +580,7 @@ void AResourceDeposit::UpdateMeshForLevel()
 
 void AResourceDeposit::RegenerateResource(float DeltaTime)
 {
-    if (!IsRenewable() || !DepositDefinition || !StorageComponent)
-    {
-        return;
-    }
-
-    float RegenerationRate = DepositDefinition->RegenerationRate;
-    if (RegenerationRate > 0.0f)
-    {
-        float RegenAmount = RegenerationRate * DeltaTime;
-        int32 RegenAmountInt = FMath::FloorToInt(RegenAmount);
-        
-        if (RegenAmountInt > 0)
-        {
-            // Check if we have space in storage
-            int32 CurrentAmount = StorageComponent->GetCurrentAmount(GetResourceType());
-            int32 MaxCapacity = GetMaxStorage();
-            
-            if (CurrentAmount < MaxCapacity)
-            {
-                int32 SpaceAvailable = MaxCapacity - CurrentAmount;
-                int32 ActualRegen = FMath::Min(RegenAmountInt, SpaceAvailable);
-                
-                StorageComponent->AddResource(GetResourceType(), ActualRegen);
-            }
-        }
-    }
+    // This is now handled in TickAutoExtraction for better integration with storage
 }
 
 FDepositLevel AResourceDeposit::GetCurrentLevelData() const

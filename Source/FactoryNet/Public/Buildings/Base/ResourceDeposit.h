@@ -1,4 +1,4 @@
-// ResourceDeposit.h
+// ResourceDeposit.h - POPRAWIONY Z COLLISION
 // Lokalizacja: Source/FactoryNet/Public/Buildings/Base/ResourceDeposit.h
 #pragma once
 
@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SceneComponent.h"
+#include "Components/SphereComponent.h"  // ✅ DODANO
 #include "Engine/DataTable.h"
 #include "Data/DepositDefinition.h"
 #include "Components/ResourceStorageComponent.h"
@@ -13,8 +14,6 @@
 
 // Forward declarations
 class UDepositDefinition;
-// Temporarily commented out until TransportHub is implemented
-// class ATransportHub;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnResourceExtracted, AResourceDeposit*, Deposit, FDataTableRowHandle, ResourceType, int32, Amount);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDepositDepleted, AResourceDeposit*, Deposit);
@@ -74,21 +73,6 @@ public:
     int32 GetMaxLevel() const;
 
     // === HUB INTEGRATION (TEMPORARILY DISABLED) ===
-    // Uncomment when TransportHub is implemented
-    /*
-    UFUNCTION(BlueprintCallable, Category = "Hub")
-    void ConnectToHub(ATransportHub* Hub);
-
-    UFUNCTION(BlueprintCallable, Category = "Hub")
-    void DisconnectFromHub();
-
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Hub")
-    ATransportHub* GetConnectedHub() const { return ConnectedHub; }
-
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Hub")
-    bool IsConnectedToHub() const { return ConnectedHub != nullptr; }
-    */
-
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Hub")
     bool RequiresHub() const;
 
@@ -107,6 +91,23 @@ public:
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Resource")
     float GetDepletionPercentage() const;
+
+    // === STORAGE ACCESS ===
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Storage")
+    UResourceStorageComponent* GetStorageComponent() const { return StorageComponent; }
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Storage")
+    int32 GetCurrentStoredAmount() const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Storage")
+    float GetStoragePercentage() const;
+
+    // === COLLISION & OVERLAP ===
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Collision")
+    bool IsLocationTooCloseToOthers(const FVector& TestLocation, float MinDistance = 1000.0f) const;
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Collision")
+    float GetCollisionRadius() const;
 
     // === VISUAL UPDATES ===
     UFUNCTION(BlueprintCallable, Category = "Visual")
@@ -131,6 +132,10 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnDepositLevelChanged OnDepositLevelChanged;
 
+    // ✅ Public storage component
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+    UResourceStorageComponent* StorageComponent;
+
 protected:
     // === COMPONENTS ===
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
@@ -139,8 +144,9 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     UStaticMeshComponent* DepositMesh;
 
+    // ✅ DODANO: Collision Component
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-    UResourceStorageComponent* StorageComponent;
+    USphereComponent* CollisionComponent;
 
     // === DEPOSIT CONFIGURATION ===
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Deposit Configuration")
@@ -155,13 +161,6 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Deposit State")
     float LastExtractionTime;
 
-    // === HUB CONNECTION (TEMPORARILY DISABLED) ===
-    // Uncomment when TransportHub is implemented
-    /*
-    UPROPERTY(BlueprintReadOnly, Category = "Hub")
-    ATransportHub* ConnectedHub;
-    */
-
     // === AUTO EXTRACTION ===
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Auto Extraction")
     bool bAutoExtractToStorage = true;
@@ -169,9 +168,19 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Auto Extraction")
     float ExtractionTickRate = 1.0f;
 
+    // === COLLISION SETTINGS ===
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision")
+    float CollisionRadius = 500.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision")
+    bool bPreventOverlapping = true;
+
     // === DEBUG ===
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
     bool bShowDebugInfo = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
+    bool bShowCollisionRadius = false;
 
 private:
     // === INTERNAL FUNCTIONS ===
@@ -181,6 +190,8 @@ private:
     FDepositLevel GetCurrentLevelData() const;
     void BroadcastExtractionEvent(int32 Amount);
     void CheckForDepletion();
+    void SetupCollision();  // ✅ DODANO
+    void UpdateCollisionSize();  // ✅ DODANO
 
     // === INTERNAL STATE ===
     float TimeSinceLastExtraction = 0.0f;
